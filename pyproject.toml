@@ -1,0 +1,20 @@
+[project]
+name = "vton-research-watcher"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "aiosqlite>=0.22.1",
+    "bs4>=0.0.2",
+    "httpx>=0.28.1",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "sqlmodel>=0.0.38",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["shared*", "scraper*", "processor*", "api*"] 
