@@ -22,6 +22,16 @@ This application is built to help brush up on Python concepts and also help me k
 - Extract abstract text and title and store in DB
 
 ![Scraping service Flow](images/scraping_service_flow.svg)
+
+### To run locally
+
+- Install the project based on pyproject.toml
+`uv pip install -e .`
+- Run the postgres as docker
+`docker-compose up -d`
+- Run the scraper
+`python -m scraper.main`
+
 ## Processing service
 
 - Processes the title and text to obtain a summary, get keywords, match against relevance keywords to get a relevance score
