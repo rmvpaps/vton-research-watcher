@@ -9,7 +9,6 @@ class ArticleBase(SQLModel, table=False):
     arxiv_id: str = Field(unique=True, index=True)
     title: Optional[str]  = Field(default=None,min_length=5)
     abstract: str  = Field(min_length=10)
-    summary: Optional[str] = Field(default=None,min_length=5)
     fetched_at: datetime = Field(
         sa_column=sa.Column(sa.DateTime(timezone=True), nullable=False),
         default_factory=lambda:datetime.now(timezone.utc))
@@ -17,6 +16,7 @@ class ArticleBase(SQLModel, table=False):
 
 class Article(ArticleBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    summary: Optional[str] = Field(default=None,min_length=5)
     scraped_at: Optional[datetime] = Field(
         sa_column=sa.Column(sa.DateTime(timezone=True)),
         default=None)

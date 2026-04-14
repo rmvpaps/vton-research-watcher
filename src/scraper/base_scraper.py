@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from shared.models import Article # Your Pydantic model
+from shared.models import ArticleBase # Your Pydantic model
 import httpx
 
 
@@ -12,12 +12,12 @@ class BaseScraper(ABC):
         pass
 
     @abstractmethod
-    async def fetchPaperDetails(self,client:httpx.AsyncClient, id:str)->Article:
+    async def fetchPaperDetails(self,client:httpx.AsyncClient, id:str)->ArticleBase:
         """Fetch and parse specific paper details."""
         pass
 
     @abstractmethod
-    async def get_details_batch(self, client: httpx.AsyncClient, id_list: List[str]) -> List[Article]:
+    async def get_details_batch(self, client: httpx.AsyncClient, id_list: List[str]) -> List[ArticleBase]:
         """Fetch paper details as a batch task"""
         pass
     

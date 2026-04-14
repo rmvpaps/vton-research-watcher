@@ -13,15 +13,16 @@ from bs4 import BeautifulSoup
 import logging
 import time
 import aiofiles
-from shared import Article,get_session,settings
+from shared import ArticleBase,get_session,settings
 from typing import List
 from scraper.base_scraper import BaseScraper
+import re
 
-baseURL = "https://arxiv.org/list/cs.CV/pastweek?skip=0&show=25"
 CONCURRENCY_LIMIT = settings.scrape_concurrency
 ARXIV_ABS_URL = "https://arxiv.org/abs/"
 
-
+class HtmlStructureException(ValueError):
+    pass
 
 
 class HtmlScraper(BaseScraper):
@@ -32,41 +33,64 @@ class HtmlScraper(BaseScraper):
 
 
             
-    def extract_ids(self,html_content:str) -> List[str]:
-        # Parse HTML content with BeautifulSoup
-        soup = BeautifulSoup(html_content, 'html.parser')
+    def extract_info_from_listing(self,html_content:str) -> List[str]:
 
-        # Find all dl tags containing dt tags
-        dl_tags = soup.find_all('dl')
+        try:
+            # Parse HTML content with BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
 
-        # List to store extracted IDs
-        extracted_ids = []
+            # Find all dl tags containing dt tags
+            dl_tags = soup.find_all('dl')
 
-        # Iterate through dl tags
-        for dl_tag in dl_tags:
-            # Find all dt tags within the current dl tag
-            dt_tags = dl_tag.find_all('dt')
+            # List to store extracted IDs
+            extracted_ids = []
+            total_pages = -1
 
-            # Iterate through dt tags
-            for dt_tag in dt_tags:
-            
-                # Find the a tag within the span tag
-                a_tag = dt_tag.find('a',attrs={'title':'Abstract'})
+            # Iterate through dl tags
+            for dl_tag in dl_tags:
+                # Find all dt tags within the current dl tag
+                dt_tags = dl_tag.find_all('dt')
 
-                # Check if the a tag has a title containing "Abstract"
-                if a_tag and a_tag.get('title', '').lower() == 'abstract':
-                    # Extract the 'href' attribute, which contains the ID
-                    href_attr = a_tag.get('href')
+                # Iterate through dt tags
+                for dt_tag in dt_tags:
+                    logging.debug(dt_tag)
+                    try:
+                
+                        # Find the a tag within the span tag
+                        a_tag = dt_tag.find('a',attrs={'title':'Abstract'})
 
-                    # Extract the ID from the 'href' attribute
-                    id_value = href_attr.split('/')[-1]
+                        # Check if the a tag has a title containing "Abstract"
+                        if a_tag and a_tag.get('title', '').lower() == 'abstract':
+                            # Extract the 'href' attribute, which contains the ID
+                            href_attr = a_tag.get('href')
 
-                    # Append the ID to the list
-                    extracted_ids.append(id_value)
+                            # Extract the ID from the 'href' attribute
+                            id_value = href_attr.split('/')[-1]
 
-        return extracted_ids
+                            # Append the ID to the list
+                            extracted_ids.append(id_value)
+                    except Exception as e:
+                        logging.error(f"Error in extracting Id from dt_tag {e}")
+            try:
+                pg_tag = soup.find('div',attrs={'class':'paging'})
+                pg_info_str = pg_tag.find(string=True,recursive=False)
+                digits = re.findall(r'\d+', pg_info_str)
+                total_pages = int("".join(digits))
+            except Exception as e:
+                logging.error(f"Error in finding total items in the week {e}")
+                #raise HtmlStructureException("Unexpected HTML format. Total could not be extracted")
+
+        except Exception as e:
+            logging.error(f"Error in extracting ids - tag structure {e}")
+            raise HtmlStructureException("Unexpected HTML format.IDs could not be extracted")
+        
+        if len(extracted_ids)== 0:
+            logging.error(f"Error in extracting ids - tag structure")
+            raise HtmlStructureException("Unexpected HTML format.IDs could not be extracted")
+
+        return extracted_ids,total_pages
     
-    async def get_details_batch(self, client: httpx.AsyncClient, id_list: List[str]) -> List[Article]:
+    async def get_details_batch(self, client: httpx.AsyncClient, id_list: List[str]) -> List[ArticleBase]:
         """
         Implementation of the batch fetch using TaskGroup.
         """
@@ -88,7 +112,7 @@ class HtmlScraper(BaseScraper):
         results = [t.result() for t in tasks if not t.cancelled() and t.result() is not None]
         return results
 
-    async def fetchPaperDetails(self,client:httpx.AsyncClient, id:str)->Article:
+    async def fetchPaperDetails(self,client:httpx.AsyncClient, id:str)->ArticleBase:
         async with self.semaphore:
             print("Fetch individual abstract")
             try:
@@ -96,10 +120,11 @@ class HtmlScraper(BaseScraper):
                 response = await client.get(url)
                 logging.info(f"[{time.strftime('%H:%M:%S')}] Received response from {url}, status: {response.status_code}")
                 #insert id into results
-                abstract = self.extract_summary(response.text)
-                currArticle = Article(arxiv_id=id,abstract=abstract)
-                currArticle = await self.store_results(currArticle)
-                return response.status_code
+                abstract,title = self.extract_summary_title(response.text)
+                currArticle = ArticleBase(arxiv_id=id,abstract=abstract,title=title)
+                return currArticle
+                # currArticle = await self.store_results(currArticle)
+                # return response.status_code
             except httpx.HTTPStatusError as e:
                 logging.error(f"[{time.strftime('%H:%M:%S')}] HTTP error: {e}")
                 return e.response.status_code
@@ -110,51 +135,93 @@ class HtmlScraper(BaseScraper):
                 logging.exception(e)
                 logging.error("Failed to process paper")
 
-    def extract_summary(self,html_content):
+    def extract_summary_title(self,html_content):
+        summary = None
+        title = None
         # Parse HTML content with BeautifulSoup
         soup = BeautifulSoup(html_content, 'html.parser')
 
-        # Find all blockquote tags containing blockquote tags
-        blockquote = soup.find_all('blockquote')
-
-        content_without_span = ''.join(blockquote[0].find_all(string=True, recursive=False)).strip()
-
-        return content_without_span
-
-    async def store_results(self,currArticle:Article)->Article:
-        logging.info("Storing fetched abstract and writing to queue")
-        
         try:
-            async with get_session() as session:
-                session.add(currArticle)  # Add the object to the session
-                await session.commit()     # Save it to the database
-                await session.refresh(currArticle) # Refresh to get the generated ID from the DB
-                logging.info(f"Inserted article with id {currArticle.id}")
-                return currArticle
+
+            # Find all blockquote tags containing blockquote tags
+            blockquote = soup.find_all('blockquote')
+
+            summary = ''.join(blockquote[0].find_all(string=True, recursive=False)).strip()
         except Exception as e:
-            logging.exception(e)
-            logging.error("Error in saving article raw",str(e))
+            logging.error(f"Error in extracting summary {e}")
+            raise HtmlStructureException("Invalid structure - Could not extract Summary")
+
+        try:
+            
+            # Find all blockquote tags containing blockquote tags
+            headings = soup.find('div',attrs={'id':'abs'}).find('h1')
+
+            title = ''.join(headings.find_all(string=True, recursive=False)).strip()
+        except Exception as e:
+            logging.error(f"Error in extracting title {e}")
+            raise HtmlStructureException("Invalid structure. Could not extract title")
+
+        return summary,title
+
+
+
+    async def fetch_id_list_paging(self, client:httpx.AsyncClient,skip: int=0,show:int=25) -> List[str]:
+        async with self.semaphore:
+            print("Fetch new page for listing from",skip)
+            IDlist = None
+            try:
+
+                r = await client.get(f"{settings.baseURL}?skip={skip}&show={show}")
+                IDlist,total = self.extract_info_from_listing(r.text)
+                return IDlist,total
+            except httpx.HTTPStatusError as e:
+                logging.error(f"[{time.strftime('%H:%M:%S')}] HTTP error: {e}")
+                return e.response.status_code
+            except httpx.RequestError as e:
+                logging.error(f"[{time.strftime('%H:%M:%S')}] Request error: {e}")
+                return None
+            except HtmlStructureException as e:
+                logging.error(f"Parsing error {e}")
+                return None
 
 
 
     async def fetch_ids(self, client:httpx.AsyncClient,limit: int) -> List[str]:
         IDlist = None
-        try:
-            if not settings.dummy:
-                r = await client.get(baseURL)
-                IDlist = self.extract_ids(r.text)
-            else:
-                async with aiofiles.open("list.txt", "r",encoding='utf-8') as f:
-                    text = await f.read()
-                    logging.debug(text[0:30])
-                    IDlist = self.extract_ids(text)
-            return IDlist
-        except httpx.HTTPStatusError as e:
-            logging.error(f"[{time.strftime('%H:%M:%S')}] HTTP error: {e}")
-            return e.response.status_code
-        except httpx.RequestError as e:
-            logging.error(f"[{time.strftime('%H:%M:%S')}] Request error: {e}")
-            return None
+  
+
+
+        IDlist,total = await self.fetch_id_list_paging(client)
+
+        if total > len(IDlist) and limit>len(IDlist):
+            print("Need to fetch more")
+            if limit > total:
+                limit = total
+            #spawn more tasks to get the results
+            tasks = []
+            show = 25
+            try:
+                async with asyncio.TaskGroup() as tg:
+                    for skip in range(show,limit,show):
+                        # We create and store task references to collect results later
+                        task = tg.create_task(self.fetch_id_list_paging(client, skip=skip,show=show))
+                        tasks.append(task)
+            except ExceptionGroup as eg:
+                logging.error(f"Batch processing encountered errors: {eg}")
+
+            # Collect results from tasks that succeeded
+            results =  [
+                item 
+                for t in tasks 
+                if not t.cancelled() and (res := t.result()) is not None 
+                for item in res[0]
+            ]
+            if len(results)!= 0:
+                IDlist.extend(results)
+            if len(IDlist) > limit:
+                IDlist = IDlist[0:limit]
+        return IDlist
+
 
 
 

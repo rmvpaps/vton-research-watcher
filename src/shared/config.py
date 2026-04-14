@@ -5,7 +5,7 @@ from typing import Optional
 class Settings(BaseSettings):
     scraper_mode: str = "html"
     
-    baseURL:str = "https://arxiv.org/list/cs.CV/pastweek?skip=0&show=25"
+    baseURL:str = "https://arxiv.org/list/cs.CV/pastweek"
     scrape_concurrency:int = 1
     ARXIV_ABS_URL:str = "https://arxiv.org/abs/"
     db_type: Optional[str] = "sqlite"
