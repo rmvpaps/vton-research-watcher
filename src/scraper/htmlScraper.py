@@ -26,11 +26,11 @@ class HtmlStructureException(ValueError):
 
 
 class HtmlScraper(BaseScraper):
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str,rate_limiter=None):
         self.base_url = base_url
         self.curr_num = 0
         self.semaphore = asyncio.Semaphore(settings.scrape_concurrency)
-
+        self.rate_limiter = rate_limiter
 
             
     def extract_info_from_listing(self,html_content:str) -> List[str]:
@@ -115,6 +115,9 @@ class HtmlScraper(BaseScraper):
     async def fetchPaperDetails(self,client:httpx.AsyncClient, id:str)->ArticleBase:
         async with self.semaphore:
             print("Fetch individual abstract")
+            if self.rate_limiter:
+                print("Rate limit check")
+                await self.rate_limiter.is_allowed()
             try:
                 url = ARXIV_ABS_URL + id
                 response = await client.get(url)
@@ -167,6 +170,9 @@ class HtmlScraper(BaseScraper):
 
     async def fetch_id_list_paging(self, client:httpx.AsyncClient,skip: int=0,show:int=25) -> List[str]:
         async with self.semaphore:
+            if self.rate_limiter:
+                print("Rate limit check")
+                await self.rate_limiter.is_allowed()
             print("Fetch new page for listing from",skip)
             IDlist = None
             try:
@@ -192,7 +198,7 @@ class HtmlScraper(BaseScraper):
 
 
         IDlist,total = await self.fetch_id_list_paging(client)
-
+        logging.info(f"Total of {total} articles to fetch")
         if total > len(IDlist) and limit>len(IDlist):
             print("Need to fetch more")
             if limit > total:

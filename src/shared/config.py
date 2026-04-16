@@ -16,8 +16,9 @@ class Settings(BaseSettings):
     db_host:str = "localhost"
     redis_url: str = "redis://localhost:6379"
     keywords_path: str = "keywords.yaml"
-    scrape_concurrency: int = 1
-    scrape_delay_seconds: float = 1.0
+    scrape_concurrency: int = 2
+    scrape_window_rate_min: int = 10
+    scrape_delay_seconds: float = 5.0
     dummy:bool = True
 
     @computed_field
