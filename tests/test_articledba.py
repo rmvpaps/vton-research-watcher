@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from shared.models import Article
-from scraper import article_dba  # adjust import to your structure
+from shared import article_dba  # adjust import to your structure
 
 
 # ── save_article ───────────────────────────────────────────────────

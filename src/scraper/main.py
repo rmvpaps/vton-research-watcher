@@ -1,6 +1,6 @@
-from scraper import ScraperFactory, article_dba,scraperService,RateLimiterFactory
+from scraper import ScraperFactory, scraperService,RateLimiterFactory
 from shared.config import settings
-from shared import get_session
+from shared import article_dba, get_session
 import asyncio
 import logging
 import httpx

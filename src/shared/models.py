@@ -25,10 +25,12 @@ class Article(ArticleBase, table=True):
 class RelevanceScore(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     article_id: int = Field(foreign_key="article.id")
-    auto_score: float
+    score: float
     manual_score: Optional[float] = None
     matched_keywords: str  # JSON list
-    scored_at: datetime = Field(default_factory=datetime.now(timezone.utc))
+    fetched_at: datetime = Field(
+        sa_column=sa.Column(sa.DateTime(timezone=True), nullable=False),
+        default_factory=lambda:datetime.now(timezone.utc))
 
 
 

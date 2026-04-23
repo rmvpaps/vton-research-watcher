@@ -1,5 +1,5 @@
-from scraper import ScraperFactory, article_dba
-from shared import Article
+from scraper import ScraperFactory
+from shared import Article, article_dba
 from shared.config import settings
 from shared import get_session
 import asyncio

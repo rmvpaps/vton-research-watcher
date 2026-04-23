@@ -31,3 +31,29 @@ async def store_results(session,currArticle:Article)->Article:
         except Exception as e:
             logging.exception(e)
             logging.error(f"Error in saving article raw {e}")
+
+
+async def updateArticle(session,currArticle:Article)->Article:
+        logging.info("Storing fetched abstract and writing to queue")
+
+        try:
+            session.save(currArticle)  # Add the object to the session
+            await session.commit()     # Save it to the database
+            await session.refresh(currArticle) # Refresh to get the generated ID from the DB
+            logging.info(f"updated article with id {currArticle.id}")
+            return currArticle
+        except Exception as e:
+            logging.exception(e)
+            logging.error(f"Error in saving article raw {e}")
+
+async def fetch_next_batch(session, limit:int):
+    curr_batch=[]
+    try:
+        statement = select(Article).limit(limit)
+        result = await session.exec(statement)
+        curr_batch = result.all()
+        return curr_batch
+    except Exception as e:
+        logging.error(f"Error occurred: {e}")
+        logging.exception(e)
+    return curr_batch
