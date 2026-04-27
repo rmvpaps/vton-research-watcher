@@ -6,6 +6,7 @@ from processor import BaseProcessor
 from typing import List
 import logging
 from shared import Article,RelevanceScore
+
 class HostedLLMProcessor(BaseProcessor):
 
     def __init__(self, keywords: List[str], api_key: str, provider_url: str ):
