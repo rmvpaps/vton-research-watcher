@@ -1,7 +1,9 @@
 from shared import Article,settings,fetch_next_batch,get_session,updateArticle
-
+import httpx
 from processor import ProcessorFactory
 from typing import List
+import logging
+from markitdown import MarkItDown
 
 keyword_list = [
     "3D Reconstruction",
@@ -15,8 +17,7 @@ class ProcessingService:
     """
     def __init__(self, processor_plugin, db_repo, vector_store):
         self.processor = ProcessorFactory.get_processor(settings.processor_mode)
-
-        self.vector_db = vector_store      
+        self.md = MarkItDown()   
 
 
     async def fetch_next_batch_and_process(self,session)->List[Article]:
@@ -25,11 +26,30 @@ class ProcessingService:
         """
         async with get_session() as session:
             articles = await fetch_next_batch(session,10)
+
             for article in articles:
                 await self.process_article(session,article)
 
+    async def download_get_text(self,id)->str:
+        """
+        Download the full arxiv paper
+        """
+        try:
 
-    async def process_article(self, session, article: Article):
+            result = self.md.convert(f"{settings.ARXIV_PDF_URL}{id}")
+        
+            # This gives you the clean Markdown text
+            full_text = result.text_content
+
+            return full_text
+
+        except Exception as e:
+            logging.error(f"Error in getting and extracting ARxiv PDF {id}: {e}")
+            return None
+
+
+
+    async def process_article(self, session, client, article: Article):
         
         # 2. PASS 1: Abstract Analysis
         # Returns a score and a 'is_relevant' boolean based on your threshold
@@ -41,20 +61,14 @@ class ProcessingService:
             await updateArticle(session,Article)
             return
 
-        # # 3. PASS 2: Full Text Expansion
-        # # Only triggered if Pass 1 succeeds
-        # full_text = await self.downloader.get_full_text(article.pdf_url)
+
+        full_text = await self.download_get_text(article.arxiv_id)
         
-        # # 4. ENRICHMENT & VECTORIZATION
-        # # Summarize the full text and get a high-quality embedding
-        # enriched_data = await self.processor.evaluate_full_text(full_text)
+        # 4. ENRICHMENT & VECTORIZATION
+        enriched_data = await self.processor.evaluate_full_text(full_text)
         
-        # # 5. FINAL STORAGE
-        # await self.vector_db.upsert(
-        #     id=article_id,
-        #     vector=enriched_data['embedding'],
-        #     metadata={**enriched_data['summary'], "title": article.title}
-        # )
+        # 5. FINAL STORAGE
+
         
         article.processed = True
         article.status = 'indexed'
