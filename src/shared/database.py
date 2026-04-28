@@ -47,6 +47,10 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 
 async def create_tables():
     async with engine.begin() as conn:
+        def enable_vector(connection):
+            connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        
+        await conn.run_sync(enable_vector)
         await conn.run_sync(SQLModel.metadata.create_all)
 
 @asynccontextmanager

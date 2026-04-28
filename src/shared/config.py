@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     baseURL:str = "https://arxiv.org/list/cs.CV/pastweek"
     scrape_concurrency:int = 1
     ARXIV_ABS_URL:str = "https://arxiv.org/abs/"
+    ARXIV_PDF_URL:str = "https://arxiv.org/pdf/"
     db_type: Optional[str] = "sqlite"
     POSTGRES_PASSWORD: str = "default123"
     POSTGRES_DB: str = "vton_research"

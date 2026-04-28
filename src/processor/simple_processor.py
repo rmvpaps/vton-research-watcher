@@ -1,5 +1,5 @@
 from processor.base_processor import BaseProcessor
-from shared.models import Article,RelevanceScore
+from shared.models import Article,RelevanceScore,Enriched
 from typing import List
 import asyncio
 import numpy as np
@@ -7,7 +7,12 @@ from sentence_transformers import SentenceTransformer
 import json 
 import logging
 from keybert import KeyBERT
-from transformers import pipeline
+from transformers import T5Tokenizer, T5ForConditionalGeneration
+from markitdown import MarkItDown
+from shared import settings
+from io import BytesIO
+import httpx
+
 
 class simpleTransformerProcessorError(Exception):
     pass
@@ -24,12 +29,11 @@ class simpleTransformerProcessor(BaseProcessor):
 
         #keyword extraction and summary
         self.kw_model = KeyBERT(model='all-MiniLM-L6-v2')
-        self.summarizer = pipeline(
-                "text-generation", 
-                model="facebook/bart-base", 
-                device=-1 
-            )
-        
+        self.summarizer = T5ForConditionalGeneration.from_pretrained("t5-small")
+        self.tokenizer = T5Tokenizer.from_pretrained("t5-small")
+
+
+
 
     async def evaluate_abstract(self, article:Article)->RelevanceScore:
         """Match against keyword list and generate score"""
@@ -66,12 +70,46 @@ class simpleTransformerProcessor(BaseProcessor):
     async def generateSummary(self, article:Article, actualText:str)->str:
         """Generate Summary from abstract and title and actual text"""
         try:
-            prompt = f"Summarize the following research text briefly:\n\n{actualText[:2000]}"
-            word_count = len(actualText[:2000].split())
-            calculated_max = min(50, int(word_count * 0.35))
-            summary = self.summarizer(prompt, max_new_tokens=calculated_max, num_beams=2, do_sample=False,repetition_penalty=2.0)
-            print(word_count,calculated_max,summary)
-            return summary[0]['generated_text']
+
+            textSize = len(actualText)
+            for start in range(0,textSize,2000):
+                if start==0:
+                    chunk = actualText[start:start+2000]
+                else:
+                    chunk = actualText[start-50:start+2000]
+                prompt = f"summarize: {chunk}"
+                word_count = len(chunk.split())
+                calculated_max = min(40, int(word_count * 0.5))
+
+                inputs = self.tokenizer.encode(
+                    prompt,
+                    return_tensors="pt",
+                    max_length=512,
+                    truncation=True
+                )
+
+                summary_ids = self.summarizer.generate(
+                    inputs,
+                    max_length=calculated_max,
+                    min_length=20,
+                    length_penalty=2.0,
+                    num_beams=4,
+                    early_stopping=True
+                )
+
+                summary = self.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+                # summary_config =  {
+                #     "max_new_tokens": calculated_max,
+                #     "min_length": 15,
+                #     "repetition_penalty": 2.5,
+                #     "do_sample": False,
+                #     "pad_token_id": self.model.tokenizer.pad_token_id,
+                #     "eos_token_id": self.model.tokenizer.eos_token_id,
+                # }
+
+                # summary = self.summarizer(prompt, **summary_config)
+                print(word_count,calculated_max,summary)
+                return summary
         except Exception as e:
             logging.error(f"Error in summary generation of {article.arxiv_id} {e}")
             raise simpleTransformerProcessorError("Summary generation Failed")
@@ -80,14 +118,15 @@ class simpleTransformerProcessor(BaseProcessor):
     async def generateKeywords(self, article:Article, actualText:str)->List[str]:
         """Generate Keywords from abstract,title and actual text"""
         try:
-            keywords = self.kw_model.extract_keywords(actualText)
+            keywords = self.kw_model.extract_keywords(actualText,keyphrase_ngram_range=(1, 1), stop_words='english',
+                              use_maxsum=True, nr_candidates=20, top_n=10)
             return [k[0] for k in keywords]
         except Exception as e:
             logging.error(f"Error in keyword generation of {article.arxiv_id} {e}")
             raise simpleTransformerProcessorError("Keyword generation Failed")
         
 
-    async def evaluate_text(self, article:Article, fullText:str)->Article:
+    async def evaluate_text(self, article:Article, fullText:str)->Enriched:
         """Generate a summary, keep the summary vector, generate keywords from fullText"""
         try:
             keywords = await self.generateKeywords(article=article,actualText=fullText)
@@ -96,10 +135,12 @@ class simpleTransformerProcessor(BaseProcessor):
                 vector = await asyncio.to_thread(self.model.encode, summary)
             else:
                 vector = await asyncio.to_thread(self.model.encode, article.abstract)
-            article.summary = summary
-            article.keywords = keywords
-            article.embedding = vector
-            enriched = Article.model_validate(article)
+
+            enriched = Enriched.model_validate(article)
+            enriched.summary = summary
+            enriched.keywords = keywords
+            enriched.embedding = vector
+            
             return enriched
         
         except simpleTransformerProcessorError as s:
@@ -108,3 +149,29 @@ class simpleTransformerProcessor(BaseProcessor):
         except Exception as e:
             logging.error(f"Unexpected Error occured {e}")
             raise e
+        
+
+class simpleFullTextExtractor:
+    def __init__(self):
+        self.md = MarkItDown()   
+
+    
+    async def download_get_text(self,id)->str:
+        """
+        Download the full arxiv paper
+        """
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                raw = await client.get(f"{settings.ARXIV_PDF_URL}{id}")
+
+                result = self.md.convert(BytesIO(raw.content))
+            
+                # This gives you the clean Markdown text
+                full_text = result.text_content
+
+                return full_text
+
+            except Exception as e:
+                logging.error(f"Error in getting and extracting ARxiv PDF {id}: {e}")
+                return None

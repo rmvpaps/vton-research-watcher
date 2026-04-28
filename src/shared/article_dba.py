@@ -49,7 +49,13 @@ async def updateArticle(session,currArticle:Article)->Article:
 async def fetch_next_batch(session, limit:int):
     curr_batch=[]
     try:
-        statement = select(Article).limit(limit)
+        statement = (
+            select(Article)
+            .where(Article.processed == False)
+            .where(Article.status == "unknown")
+            .with_for_update(skip_locked=True)
+            .limit(limit)
+        )
         result = await session.exec(statement)
         curr_batch = result.all()
         return curr_batch

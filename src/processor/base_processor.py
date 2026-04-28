@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from shared.models import Article,RelevanceScore # Your Pydantic model
+from shared.models import Article,RelevanceScore,Enriched # Your Pydantic model
 
 
 class BaseProcessor(ABC):
@@ -11,7 +11,7 @@ class BaseProcessor(ABC):
         pass
 
     @abstractmethod
-    async def evaluate_text(self, article:Article)->Article:
+    async def evaluate_text(self, article:Article,fullText:str)->Enriched:
         """Generate a summary, keep the summary vector, generate keywords from fullText"""
         pass
 

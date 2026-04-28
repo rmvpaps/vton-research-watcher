@@ -32,6 +32,18 @@ def valid_arxiv_abstract(shared_data_dir):
 
 
 @pytest.fixture
+def valid_arxiv_text(shared_data_dir):
+    """Provides the content of a valid ArXiv page."""
+    return (shared_data_dir / "valid_text.txt").read_text()
+
+@pytest.fixture
+def valid_pdf_data(shared_data_dir):
+    """Provides the content of a valid ArXiv page."""
+    with open(f"{shared_data_dir}/valid.pdf", "rb") as f:
+        return f.read()
+    return b""
+
+@pytest.fixture
 def invalid_arxiv_abstract(shared_data_dir):
     """Provides the content of a valid ArXiv page."""
     return (shared_data_dir / "bad_abstract.html").read_text()

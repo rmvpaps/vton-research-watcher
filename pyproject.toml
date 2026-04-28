@@ -21,6 +21,9 @@ dependencies = [
     "sentence-transformers>=5.4.1",
     "pillow>=12.2.0",
     "openai>=2.32.0",
+    "markitdown[pdf]>=0.1.5",
+    "pgvector>=0.4.2",
+    "keybert>=0.9.0",
 ]
 
 

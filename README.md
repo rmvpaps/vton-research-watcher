@@ -35,7 +35,11 @@ This application is built to help brush up on Python concepts and also help me k
 ## Processing service
 
 - Processes the title and text to obtain a summary, get keywords, match against relevance keywords to get a relevance score
-- Store the score in DB
+- We will have a plugin architecture where we can either use sentence transformers or HostedLLMs to generate a score based on they keywords.
+- If the score is below threhold, we will mark the Article as processed, set status to rejected and save the score
+- If the score is above a threshold, we will fetch the text of the paper and extract keywords and summary 
+- Store the article with keywords and summary also the new score in DB, status as indexed
+- Store the article in vectorDB for future search
 
 ![Processing Flow](images/relevance_scoring_pipeline.svg)
 ## API
