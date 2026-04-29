@@ -57,3 +57,8 @@ async def create_tables():
 async def get_session():
     async with AsyncSessionLocal() as session:
         yield session
+
+# FastAPI-specific wrapper
+async def get_session_dep():
+    async with get_session() as session:
+        yield session
