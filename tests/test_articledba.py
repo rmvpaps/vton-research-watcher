@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from shared.models import Article
+from shared.models import Article,Keyword,RelevanceScore
 from shared import article_dba  # adjust import to your structure
-
-
+from sqlmodel import select
+import json 
 # ── save_article ───────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -115,3 +115,56 @@ async def test_remove_duplicates_db_error(mock_get_session, mock_session):
 
         assert new_ids == []
 
+
+@pytest.mark.asyncio
+async def test_save_keyword_success(db_session):
+    """Keyword is added, committed and refreshed"""
+    article = Article(
+        arxiv_id="2603.30045",
+        title="A Vision Transformer",
+        abstract="We propose a novel approach to object detection.",
+        fetched_at=datetime.now(timezone.utc),
+    )
+    keylist = ["transformer","ViT","Detection"]
+
+    article = await article_dba.store_results(db_session,article)
+    await article_dba.saveKeywords(db_session, keylist, article)
+
+    #check if keywords are stored
+    statement = select(Keyword.word).where(Keyword.article_id.__eq__(article.id))
+    result = await db_session.exec(statement)
+    words = result.all()
+    print(words)
+    assert len(words) == 3
+    assert isinstance(words[0],str)
+    assert words == keylist
+
+
+@pytest.mark.asyncio
+async def test_save_Relevancescore_success(db_session):
+    """Score is added, committed and refreshed"""
+    article = Article(
+        arxiv_id="2603.30045",
+        title="A Vision Transformer",
+        abstract="We propose a novel approach to object detection.",
+        fetched_at=datetime.now(timezone.utc),
+    )
+
+
+    result = await article_dba.store_results(db_session, article)
+    score = RelevanceScore(
+        article_id=result.id,
+        score=0.7,
+        matched_keywords=json.dumps(["Reconstruction"]),
+    )
+
+    score = await article_dba.saveRelevanceScore(db_session, score)
+    #check if score is stored
+    statement = select(RelevanceScore.score).where(RelevanceScore.article_id.__eq__(result.id))
+    result = await db_session.exec(statement)
+    scores = result.all()
+    print(scores)
+    assert len(scores) == 1
+    assert isinstance(scores[0],float)
+    assert scores[0] == score.score
+        

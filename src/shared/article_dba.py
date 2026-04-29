@@ -1,10 +1,11 @@
 from shared import get_session
-from shared import Article
+from shared import Article,RelevanceScore,Keyword
 from sqlmodel import select
 from contextlib import asynccontextmanager
 import logging
+from typing import List
 
-async def removeDuplicates(session, IDList:list[str]):
+async def removeDuplicates(session, IDList:List[str]):
     new_ids=[]
     try:
         statement = select(Article.arxiv_id).where(Article.arxiv_id.in_(IDList))
@@ -63,3 +64,33 @@ async def fetch_next_batch(session, limit:int):
         logging.error(f"Error occurred: {e}")
         logging.exception(e)
     return curr_batch
+
+
+async def saveRelevanceScore(session,score:RelevanceScore)->RelevanceScore:
+    if RelevanceScore.model_validate(score):
+        try:
+            session.add(score)
+            await session.commit()     # Save it to the database
+            await session.refresh(score) # Refresh to get the generated ID from the DB
+            return score
+        except Exception as e:
+            logging.error(f"Error in saving score for article ID{score.article_id} - {e}")
+             
+
+async def saveKeywords(session,keywords:List[str],article:Article):
+    try:
+        for item in keywords:
+            key = Keyword(article_id=article.id,word=item)
+            key = Keyword.model_validate(key)
+            session.add(key)
+            #await session.refresh(key) # Refresh to get the generated ID from the DB
+
+        await session.commit()    
+    except Exception as e:
+        logging.error(f"Error in saving keywords for article {article.arxiv_id} - {e}")
+        session.rollback()
+    finally:
+        session.close()
+    
+
+          
