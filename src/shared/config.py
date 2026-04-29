@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     scrape_window_rate_min: int = 10
     scrape_delay_seconds: float = 5.0
     dummy:bool = True
+    summarizer_path:str = "C:/Users/Lenovo/.cache/huggingface/hub/models--t5-small/snapshots/df1b051c49625cf57a3d0d8d3863ed4d13564fe4"
+    embedding_path:str = "C:/Users/Lenovo/.cache/huggingface/hub/models--BAAI--bge-small-en-v1.5/snapshots/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
+    keybert_path:str = "C:/Users/Lenovo/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"
 
     @computed_field
     @property

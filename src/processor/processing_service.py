@@ -1,4 +1,4 @@
-from shared import Article,settings,fetch_next_batch,get_session,updateArticle
+from shared import Article,settings,fetch_next_batch,get_session,updateArticle,saveRelevanceScore,saveKeywords
 import httpx
 from processor import ProcessorFactory,simpleFullTextExtractor
 from typing import List
@@ -24,7 +24,7 @@ class ProcessingService:
         self.downloader = simpleFullTextExtractor()
 
 
-    async def fetch_next_batch_and_process(self,session)->List[Article]:
+    async def fetch_next_batch_and_process(self)->List[Article]:
         """
         Function to fetch unprocessed articles from DB
         """
@@ -57,7 +57,8 @@ class ProcessingService:
         
         
         # 5. FINAL STORAGE
-        # await updateKeywords(enriched_data.keywords)
+        await saveKeywords(session,enriched_data.keywords,article)
+        await saveRelevanceScore(session,result)
         # await updateEmbeddings(enriched_data.embedding)
 
         article.summary = enriched_data.summary

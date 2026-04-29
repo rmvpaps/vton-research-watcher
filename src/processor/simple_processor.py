@@ -24,13 +24,25 @@ class simpleTransformerProcessor(BaseProcessor):
 
     def __init__(self, keywords: List[str]):
         self.keywords = keywords
-        self.model = SentenceTransformer('BAAI/bge-small-en-v1.5')  # e.g., a SentenceTransformer instance
+        self.model = SentenceTransformer(
+            settings.embedding_path, 
+            device='cpu',
+            local_files_only=True)  # e.g., a SentenceTransformer instance
         self.kw_embeddings = self.model.encode(keywords)
 
         #keyword extraction and summary
-        self.kw_model = KeyBERT(model='all-MiniLM-L6-v2')
-        self.summarizer = T5ForConditionalGeneration.from_pretrained("t5-small")
-        self.tokenizer = T5Tokenizer.from_pretrained("t5-small")
+        kw_model = SentenceTransformer(
+            settings.keybert_path, 
+            device='cpu',
+            local_files_only=True)
+        self.kw_model = KeyBERT(model=kw_model)
+        self.summarizer = T5ForConditionalGeneration.from_pretrained(
+            settings.summarizer_path,
+            local_files_only=True)
+        self.tokenizer = T5Tokenizer.from_pretrained(
+            settings.summarizer_path,
+            local_files_only=True
+        )
 
 
 

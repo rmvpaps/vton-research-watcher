@@ -38,7 +38,7 @@ async def updateArticle(session,currArticle:Article)->Article:
         logging.info("Storing fetched abstract and writing to queue")
 
         try:
-            session.save(currArticle)  # Add the object to the session
+            session.add(currArticle)  # Add the object to the session
             await session.commit()     # Save it to the database
             await session.refresh(currArticle) # Refresh to get the generated ID from the DB
             logging.info(f"updated article with id {currArticle.id}")
@@ -53,7 +53,6 @@ async def fetch_next_batch(session, limit:int):
         statement = (
             select(Article)
             .where(Article.processed == False)
-            .where(Article.status == "unknown")
             .with_for_update(skip_locked=True)
             .limit(limit)
         )
