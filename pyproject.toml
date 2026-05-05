@@ -24,7 +24,24 @@ dependencies = [
     "markitdown[pdf]>=0.1.5",
     "pgvector>=0.4.2",
     "keybert>=0.9.0",
-    "fastapi[standard]>=0.136.1",
+    "fastapi[standard]>=0.136.1"
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+[tool.uv]
+package = true
+# This forces the resolution to use the CPU version for ALL dependencies
+override-dependencies = [
+    "torch==2.11.0+cpu",
+    "torchvision==0.20.1+cpu"
 ]
 
 
