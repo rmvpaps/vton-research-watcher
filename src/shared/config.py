@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     db_protocol: str = "postgresql+asyncpg"
     db_user:str = "postgres"
     db_host:str = "localhost"
+    db_sslstring:str = "ssl"
     redis_url: str = "redis://localhost:6379"
     keywords_path: str = "keywords.yaml"
     scrape_concurrency: int = 2
@@ -32,7 +33,7 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         if self.db_type == "sqlite":
             return "sqlite+aiosqlite:///database.db"
-        return f"{self.db_protocol}://{self.db_user}:{self.POSTGRES_PASSWORD}@{self.db_host}/{self.POSTGRES_DB}"
+        return f"{self.db_protocol}://{self.db_user}:{self.POSTGRES_PASSWORD}@{self.db_host}/{self.POSTGRES_DB}?{self.db_sslstring}"
 
     class Config:
         env_file = ".env"

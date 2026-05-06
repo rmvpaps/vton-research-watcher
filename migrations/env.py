@@ -20,6 +20,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from shared.models import SQLModel 
+import shared.models
 target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -30,7 +31,8 @@ target_metadata = SQLModel.metadata
 def get_url():
     # settings.DATABASE_URL should already be handling the Secret Manager logic
     # Alembic needs a sync driver, so swap 'asyncpg' for 'psycopg2'
-    return settings.database_url.replace("asyncpg", "psycopg2")
+    newconn =  settings.database_url.replace("asyncpg", "psycopg2")
+    return newconn.replace("ssl=require","sslmode=require")
 
 
 def run_migrations_offline() -> None:

@@ -6,8 +6,8 @@ async def main():
     print("Deleted Project DB")
     await create_database()
     print("Created new Project DB")
-    await create_tables()
-    print("Basic tables created succesfully")
+    #await create_tables()
+    #print("Basic tables created succesfully")
 
 
 if __name__ == "__main__":
