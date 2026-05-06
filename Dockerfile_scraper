@@ -15,9 +15,9 @@ WORKDIR /app
 # Copy the whole project so shared/ is available
 COPY pyproject.toml uv.lock ./ 
 
-
+RUN uv sync --frozen --no-cache --no-install-project
 
 COPY  . .
-RUN uv sync --frozen
+RUN uv sync --frozen --no-cache
 
 CMD ["uv","run","python", "-m", "scraper.main"]
