@@ -32,7 +32,7 @@
         
             "secrets": [{
                 "name":"POSTGRES_PASSWORD",
-                "valueFrom": "arn:aws:secretsmanager:us-east-1:703525589634:secret:rds!db-6c4a6398-7b05-4750-b0ff-395702773b38-GgSZLE"
+                "valueFrom": "arn:aws:secretsmanager:us-east-1:703525589634:secret:rds!db-6c4a6398-7b05-4750-b0ff-395702773b38-GgSZLE:password::"
               },
               {
                 "name":"llm_api_key",
