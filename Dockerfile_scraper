@@ -2,7 +2,8 @@
 FROM ghcr.io/astral-sh/uv:latest AS uv
 
 # 2. Use a standard Python image for your app
-FROM python:3.13-slim
+#FROM python:3.13-slim
+FROM public.ecr.aws/docker/library/python:3.13-slim
 
 # 3. Copy the uv binary from the uv image
 COPY --from=uv /uv /bin/uv
