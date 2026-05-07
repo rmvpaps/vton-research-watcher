@@ -34,7 +34,7 @@ phases:
       
       - echo "Registering migration task..."
       - |
-        RAW_DEF=$(aws ecs describe-task-definition --task-definition migrate-helper --query 'taskDefinition' --output json)
+        RAW_DEF=$(aws ecs describe-task-definition --task-definition aws-migrate-helper --query 'taskDefinition' --output json)
         NEW_TASK_DEF=$(echo $RAW_DEF | jq --arg IMAGE "$REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION" '
           .containerDefinitions[0].image = $IMAGE | 
           del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
