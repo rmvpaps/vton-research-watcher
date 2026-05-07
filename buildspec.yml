@@ -37,42 +37,47 @@ phases:
       - echo "Tests passed! Pushing to ECR..."
       - docker tag scraper:v0 $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
       - docker push $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
-      # register task to use the new image
-      - echo "Registering new task by fetching and updating existing definition"
+      
+      - echo "Registering migration task..."
       - |
-        NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition migrate-helper --query 'taskDefinition' --output json | jq --arg IMAGE "$REPOSITORY_URI:$IMAGE_TAG" '
-          .containerDefinitions[0].image = $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION | 
+        RAW_DEF=$(aws ecs describe-task-definition --task-definition migrate-helper --query 'taskDefinition' --output json)
+        NEW_TASK_DEF=$(echo $RAW_DEF | jq --arg IMAGE "$REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION" '
+          .containerDefinitions[0].image = $IMAGE | 
           del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
         ')
-      - NEW_REVISION_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
+        NEW_REVISION_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
       
-      - echo "New Task Definition ARN for migrate: $NEW_REVISION_ARN"
-      # Trigger the ECS migration task
       - echo "Running Migrations..."
-      - TASK_ARN=$(aws ecs run-task --cluster research-watcher --task-definition "$NEW_REVISION_ARN" --count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SG_ID],assignPublicIp=ENABLED}" --query 'tasks[0].taskArn' --output text)
-      - echo "Waiting for migration to finish (Task ARN: $TASK_ARN)..."
-      # This command pauses the build until the ECS task moves to the STOPPED state
-      - aws ecs wait tasks-stopped --cluster $MY_CLUSTER --tasks $TASK_ARN
+      # Wrap the entire command in quotes or use the pipe block to avoid YAML parsing errors
+      - |
+        TASK_ARN=$(aws ecs run-task \
+          --cluster research-watcher \
+          --task-definition "$NEW_REVISION_ARN" \
+          --count 1 \
+          --launch-type FARGATE \
+          --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SG_ID],assignPublicIp=ENABLED}" \
+          --query 'tasks[0].taskArn' --output text)
+      
+      - echo "Waiting for migration to finish..."
+      - aws ecs wait tasks-stopped --cluster research-watcher --tasks $TASK_ARN
       
       - echo "Checking migration exit code..."
-      # Verify the container actually succeeded (exit code 0)
       - |
-        EXIT_CODE=$(aws ecs describe-tasks --cluster $MY_CLUSTER --tasks $TASK_ARN --query 'tasks[0].containers[0].exitCode' --output text)
+        EXIT_CODE=$(aws ecs describe-tasks --cluster research-watcher --tasks $TASK_ARN --query 'tasks[0].containers[0].exitCode' --output text)
         if [ "$EXIT_CODE" -ne "0" ]; then
-          echo "Migration failed with exit code $EXIT_CODE. Aborting deployment."
+          echo "Migration failed with exit code $EXIT_CODE. Aborting."
           exit 1
         fi
 
-      - echo "Migration successful. Proceeding to update scraper task..."
-      - echo "Registering new task by fetching and updating existing definition"
+      - echo "Updating scraper task..."
       - |
-        NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition aws-scraper --query 'taskDefinition' --output json | jq --arg IMAGE "$REPOSITORY_URI:$IMAGE_TAG" '
-          .containerDefinitions[0].image = $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION | 
+        RAW_SCRAPER=$(aws ecs describe-task-definition --task-definition aws-scraper --query 'taskDefinition' --output json)
+        NEW_SCRAPER_DEF=$(echo $RAW_SCRAPER | jq --arg IMAGE "$REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION" '
+          .containerDefinitions[0].image = $IMAGE | 
           del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
         ')
-      - NEW_REVISION_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
-      
-      - echo "New Task Definition ARN for scraper: $NEW_REVISION_ARN"
+        SCRAPER_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_SCRAPER_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
 
-      # Update Task Definition and EventBridge
-      - aws events put-targets --rule $MY_CRON_RULE --targets "Id"="1","Arn"="$MY_TARGET_ARN","RoleArn"="$MY_ROLE_ARN","EcsParameters"='{"TaskDefinitionArn":"'$NEW_REVISION_ARN'","TaskCount":1,"LaunchType":"FARGATE","NetworkConfiguration":{"awsvpcConfiguration":{"Subnets":["'$SUBNET_ID'"],"SecurityGroups":["'$SG_ID'"],"AssignPublicIp":"ENABLED"}}}'
+      - echo "Updating EventBridge Target..."
+      - |
+        aws events put-targets --rule $MY_CRON_RULE --targets "Id"="1","Arn"="$MY_TARGET_ARN","RoleArn"="$MY_ROLE_ARN","EcsParameters"='{"TaskDefinitionArn":"'$SCRAPER_ARN'","TaskCount":1,"LaunchType":"FARGATE","NetworkConfiguration":{"awsvpcConfiguration":{"Subnets":["'$SUBNET_ID'"],"SecurityGroups":["'$SG_ID'"],"AssignPublicIp":"ENABLED"}}}'
