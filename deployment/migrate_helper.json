@@ -1,0 +1,52 @@
+{
+    "executionRoleArn":"arn:aws:iam::703525589634:role/ecs_taskexecution_researchwatcher",
+    "family": "aws-migrate-helper", 
+    "networkMode": "awsvpc", 
+    "containerDefinitions": [
+        {
+            "name": "migrate-helper", 
+            "image": "703525589634.dkr.ecr.us-east-1.amazonaws.com/research-watcher:latest", 
+            "essential": true, 
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                "awslogs-group": "awslogs-research-watcher",
+                "awslogs-create-group": "true",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "awslogs-scraper"
+                }
+            },
+
+            "command": ["uv", "run", "alembic", "upgrade", "head"],
+            "environmentFiles": [
+                {
+                    "value": "arn:aws:s3:::rmvpapz-research-watcher/scraper-aws.env",
+                    "type": "s3"
+                }],
+            "environment": [
+                {
+                    "name": "PYTHONPATH",
+                    "value": "/app/src"
+                },
+                {
+                    "name":"db_sslstring",
+                    "value":"sslmode"
+                }
+            ],
+        
+            "secrets": [{
+                "name":"POSTGRES_PASSWORD",
+                "valueFrom": "arn:aws:secretsmanager:us-east-1:703525589634:secret:rds!db-6c4a6398-7b05-4750-b0ff-395702773b38-GgSZLE:password::"
+              },
+              {
+                "name":"llm_api_key",
+                "valueFrom": "arn:aws:secretsmanager:us-east-1:703525589634:secret:grok_api_key-ifUrUP"
+              }]
+        }
+    ], 
+    "requiresCompatibilities": [
+        "FARGATE"
+    ], 
+    "cpu": "256", 
+    "memory": "512"
+}
