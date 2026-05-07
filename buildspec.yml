@@ -74,4 +74,26 @@ phases:
 
       - echo "Updating EventBridge Target..."
       - |
-        aws events put-targets --rule $MY_CRON_RULE --targets "Id"="1","Arn"="$MY_TARGET_ARN","RoleArn"="$MY_ROLE_ARN","EcsParameters"='{"TaskDefinitionArn":"'$SCRAPER_ARN'","TaskCount":1,"LaunchType":"FARGATE","NetworkConfiguration":{"awsvpcConfiguration":{"Subnets":["'$SUBNET_ID'"],"SecurityGroups":["'$SG_ID'"],"AssignPublicIp":"ENABLED"}}}'
+        # 1. Construct the Targets JSON safely
+        TARGETS_JSON='[
+          {
+            "Id": "1",
+            "Arn": "'$MY_TARGET_ARN'",
+            "RoleArn": "'$MY_ROLE_ARN'",
+            "EcsParameters": {
+              "TaskDefinitionArn": "'$SCRAPER_ARN'",
+              "TaskCount": 1,
+              "LaunchType": "FARGATE",
+              "NetworkConfiguration": {
+                "awsvpcConfiguration": {
+                  "Subnets": ["'$SUBNET_ID'"],
+                  "SecurityGroups": ["'$SG_ID'"],
+                  "AssignPublicIp": "ENABLED"
+                }
+              }
+            }
+          }
+        ]'
+        
+        # 2. Pass the variable to the CLI
+        aws events put-targets --rule $MY_CRON_RULE --targets "$TARGETS_JSON"
