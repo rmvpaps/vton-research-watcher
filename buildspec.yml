@@ -1,0 +1,78 @@
+version: 0.2
+
+env:
+  variables:
+    JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-amd64"
+  parameter-store:
+    LOGIN_PASSWORD: /CodeBuild/dockerLoginPassword
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.13
+    commands:
+      - echo "Installing uv..."
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+      - echo attempting docker
+      - aws ecr get-login-password | docker login --username AWS --password-stdin $REPOSITORY_URI
+    finally:
+      - echo Install and docker login stage over 
+
+  build:
+    commands:
+      - echo Entered the build phase...
+      - echo Build started on `date`
+      - echo "Building image..."
+      - docker build -t scraper:v0 -f Dockerfile_scraper .
+      - echo "Running Tests inside the container..."
+      # If this fails, the whole build fails and stops here
+      - docker run scraper:v0 uv run pytest tests/scraper/
+    finally:
+      - echo Docker image build and test over
+
+  post_build:
+    commands:
+      - echo Entered the post_build phase...
+      - echo Build completed on `date`
+      - echo "Tests passed! Pushing to ECR..."
+      - docker tag scraper:v0 $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - docker push $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      # register task to use the new image
+      - echo "Registering new task by fetching and updating existing definition"
+      - |
+        NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition migrate-helper --query 'taskDefinition' --output json | jq --arg IMAGE "$REPOSITORY_URI:$IMAGE_TAG" '
+          .containerDefinitions[0].image = $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION | 
+          del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+        ')
+      - NEW_REVISION_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
+      
+      - echo "New Task Definition ARN for migrate: $NEW_REVISION_ARN"
+      # Trigger the ECS migration task
+      - echo "Running Migrations..."
+      - TASK_ARN=$(aws ecs run-task --cluster research-watcher --task-definition "$NEW_REVISION_ARN" --count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SG_ID],assignPublicIp=ENABLED}" --query 'tasks[0].taskArn' --output text)
+      - echo "Waiting for migration to finish (Task ARN: $TASK_ARN)..."
+      # This command pauses the build until the ECS task moves to the STOPPED state
+      - aws ecs wait tasks-stopped --cluster $MY_CLUSTER --tasks $TASK_ARN
+      
+      - echo "Checking migration exit code..."
+      # Verify the container actually succeeded (exit code 0)
+      - |
+        EXIT_CODE=$(aws ecs describe-tasks --cluster $MY_CLUSTER --tasks $TASK_ARN --query 'tasks[0].containers[0].exitCode' --output text)
+        if [ "$EXIT_CODE" -ne "0" ]; then
+          echo "Migration failed with exit code $EXIT_CODE. Aborting deployment."
+          exit 1
+        fi
+
+      - echo "Migration successful. Proceeding to update scraper task..."
+      - echo "Registering new task by fetching and updating existing definition"
+      - |
+        NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition aws-scraper --query 'taskDefinition' --output json | jq --arg IMAGE "$REPOSITORY_URI:$IMAGE_TAG" '
+          .containerDefinitions[0].image = $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION | 
+          del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+        ')
+      - NEW_REVISION_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
+      
+      - echo "New Task Definition ARN for scraper: $NEW_REVISION_ARN"
+
+      # Update Task Definition and EventBridge
+      - aws events put-targets --rule $MY_CRON_RULE --targets "Id"="1","Arn"="$MY_TARGET_ARN","RoleArn"="$MY_ROLE_ARN","EcsParameters"='{"TaskDefinitionArn":"'$NEW_REVISION_ARN'","TaskCount":1,"LaunchType":"FARGATE","NetworkConfiguration":{"awsvpcConfiguration":{"Subnets":["'$SUBNET_ID'"],"SecurityGroups":["'$SG_ID'"],"AssignPublicIp":"ENABLED"}}}'
