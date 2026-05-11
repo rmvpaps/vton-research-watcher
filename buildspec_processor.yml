@@ -29,7 +29,7 @@ phases:
       - echo Entered the post_build phase...
       - echo Build completed on `date`
       - echo "Tests passed! Pushing to ECR..."
-      - docker tag scraper:v0 $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - docker tag processor:v0 $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
       - docker push $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
       
 
