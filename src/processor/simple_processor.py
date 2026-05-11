@@ -1,17 +1,16 @@
-from processor.base_processor import BaseProcessor
+from processor import BaseProcessor,ProcessorUtils
 from shared.models import Article,RelevanceScore,Enriched
 from typing import List
 import asyncio
 import numpy as np
-from sentence_transformers import SentenceTransformer
 import json 
 import logging
 from keybert import KeyBERT
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-from markitdown import MarkItDown
+from sentence_transformers import SentenceTransformer
+
 from shared import settings
-from io import BytesIO
-import httpx
+
 
 
 class simpleTransformerProcessorError(Exception):
@@ -22,14 +21,10 @@ class simpleTransformerProcessor(BaseProcessor):
     Use transformers and locally downloaded models to generate summary, keywords, semantic match with keywordlist
     """
 
-    def __init__(self, keywords: List[str]):
+    def __init__(self, keywords: List[str],encoding_model:ProcessorUtils):
         self.keywords = keywords
-        self.model = SentenceTransformer(
-            settings.embedding_path, 
-            device='cpu',
-            local_files_only=True)  # e.g., a SentenceTransformer instance
-        self.kw_embeddings = self.model.encode(keywords)
-
+        self.encoding_model = encoding_model
+        self.kw_embeddings = self.encoding_model.encode(keywords)
         #keyword extraction and summary
         kw_model = SentenceTransformer(
             settings.keybert_path, 
@@ -63,7 +58,7 @@ class simpleTransformerProcessor(BaseProcessor):
 
         # 2. Semantic Match Score (Cosine Similarity)
         # Wrap in to_thread if using a heavy local model
-        abs_embedding = await asyncio.to_thread(self.model.encode, abstract)
+        abs_embedding = await asyncio.to_thread(self.encoding_model.encode, abstract)
         
         # Calculate cosine similarity against all keywords and take the max or mean
         # Using numpy: (A dot B) / (normA * normB)
@@ -144,9 +139,9 @@ class simpleTransformerProcessor(BaseProcessor):
             keywords = await self.generateKeywords(article=article,actualText=fullText)
             summary = await self.generateSummary(article=article,actualText=fullText)
             if summary is not None:
-                vector = await asyncio.to_thread(self.model.encode, summary)
+                vector = await asyncio.to_thread(self.encoding_model.encode, summary)
             else:
-                vector = await asyncio.to_thread(self.model.encode, article.abstract)
+                vector = await asyncio.to_thread(self.encoding_model.encode, article.abstract)
 
             enriched = Enriched.model_validate(article)
             enriched.summary = summary
@@ -162,28 +157,3 @@ class simpleTransformerProcessor(BaseProcessor):
             logging.error(f"Unexpected Error occured {e}")
             raise e
         
-
-class simpleFullTextExtractor:
-    def __init__(self):
-        self.md = MarkItDown()   
-
-    
-    async def download_get_text(self,id)->str:
-        """
-        Download the full arxiv paper
-        """
-        
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            try:
-                raw = await client.get(f"{settings.ARXIV_PDF_URL}{id}")
-
-                result = self.md.convert(BytesIO(raw.content))
-            
-                # This gives you the clean Markdown text
-                full_text = result.text_content
-
-                return full_text
-
-            except Exception as e:
-                logging.error(f"Error in getting and extracting ARxiv PDF {id}: {e}")
-                return None

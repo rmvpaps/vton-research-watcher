@@ -10,7 +10,7 @@ import os
 os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 from processor.processing_service import ProcessingService
-from processor import simpleFullTextExtractor,processing_service
+from processor import ProcessorUtils,processing_service
 from shared import Article,Enriched,article_dba
 from datetime import datetime,timezone
 
