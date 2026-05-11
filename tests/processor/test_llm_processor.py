@@ -38,9 +38,9 @@ async def test_evaluate_score_no_match():
         ]
         art1 = Article(arxiv_id="2001.2001",
                        title="Measuring neutrino mass and asymmetry through galaxy pairwise peculiar velocity",
-                       abstract="Cosmic neutrinos are among the most abundant fermions in the Universe, yet the values of their masses and chemical potentials remain uncertain. In this Letter, we present the first constraints on the total neutrino mass M_\nu and the neutrino asymmetry parameter \eta^2 derived from the mean galaxy pairwise peculiar velocity in the quasi-linear and nonlinear regimes. We develop a simulation-based analysis pipeline that connects neutrino properties to predictions of galaxy pairwise velocity, and apply it to galaxy data from the Cosmicflows-4 grouped catalog. Our analysis is performed within two independent cosmological frameworks, based on cosmological parameters derived from Cosmic microwave background (CMB) and local distance ladder measurements, respectively. By performing fits to the galaxy pairwise velocity, we obtain consistent constraints from both frameworks. Quoting posterior means with 68% CL, we find M_\nu = 0.24^{+0.34}_{-0.18}\ \mathrm{eV} and \eta^2 = 2.14^{+0.30}_{-0.32} in the CMB framework, and M_\nu = 0.37^{+0.34}_{-0.26}\ \mathrm{eV} and \eta^2 = 2.4^{+2.1}_{-1.6} in the local framework. In particular, we find a 7\sigma measurement of a non-zero neutrino asymmetry in the CMB framework. These neutrino parameters are consistent with those, in our previous work, obtained from the Planck CMB temperature power spectrum. These results demonstrate that galaxy pairwise velocities provide an independent and sensitive probe of neutrino properties, opening a new avenue for testing neutrino physics with large-scale structure observations"
+                       abstract="Cosmic neutrinos are among the most abundant fermions in the Universe, yet the values of their masses and chemical potentials remain uncertain. In this Letter, we present the first constraints on the total neutrino mass and the neutrino asymmetry parameter  derived from the mean galaxy pairwise peculiar velocity in the quasi-linear and nonlinear regimes. We develop a simulation-based analysis pipeline that connects neutrino properties to predictions of galaxy pairwise velocity, and apply it to galaxy data from the Cosmicflows-4 grouped catalog. Our analysis is performed within two independent cosmological frameworks, based on cosmological parameters derived from Cosmic microwave background (CMB) and local distance ladder measurements, respectively. By performing fits to the galaxy pairwise velocity, we obtain consistent constraints from both frameworks. Quoting posterior means with 68% CL, we find  in the CMB framework, and  in the local framework. In particular, we find a  measurement of a non-zero neutrino asymmetry in the CMB framework. These neutrino parameters are consistent with those, in our previous work, obtained from the Planck CMB temperature power spectrum. These results demonstrate that galaxy pairwise velocities provide an independent and sensitive probe of neutrino properties, opening a new avenue for testing neutrino physics with large-scale structure observations"
                        )
-        processor = HostedLLMProcessor(keywords=keywords,api_key=settings.llm_api_key,provider_url=settings.llm_host)
+        processor = HostedLLMProcessor(keywords=keywords,encoding_model=processutil,api_key=settings.llm_api_key,provider_url=settings.llm_host)
         score = await processor.evaluate_abstract(art1)
 
         assert score is not None
@@ -56,11 +56,11 @@ async def test_evaluate_score_partial_match():
         "Human Parametric Model",
         "Virtual Try On"
         ]
-        art1 = Article(arxiv_id="2001.2001",
+        art1 = Article(arxiv_id="2001.2001",    
                        title="Fixing 3D Reconstructions via Multi-View Synchronization",
                        abstract="We present SyncFix, a framework that enforces cross-view consistency during the diffusion-based refinement of reconstructed scenes. SyncFix formulates refinement as a joint latent bridge matching problem, synchronizing distorted and clean representations across multiple views to fix the semantic and geometric inconsistencies. This means SyncFix learns a joint conditional over multiple views to enforce consistency throughout the denoising trajectory. Our training is done only on image pairs, but it generalizes naturally to an arbitrary number of views during inference. Moreover, reconstruction quality improves with additional views, with diminishing returns at higher view counts. Qualitative and quantitative results demonstrate that SyncFix consistently generates high-quality reconstructions and surpasses current state-of-the-art baselines, even in the absence of clean reference images. SyncFix achieves even higher fidelity when sparse references are available."
                        )
-        processor = HostedLLMProcessor(keywords=keywords,api_key=settings.llm_api_key,provider_url=settings.llm_host)
+        processor = HostedLLMProcessor(keywords=keywords,encoding_model=processutil,api_key=settings.llm_api_key,provider_url=settings.llm_host)
         score = await processor.evaluate_abstract(art1)
 
         assert score is not None
@@ -98,7 +98,4 @@ async def test_evaluate_text(valid_arxiv_text,processutil):
         assert i in new_article.keywords
 
 
-    print(new_article.summary)
-    
-    assert 1==0
 

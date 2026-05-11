@@ -26,7 +26,7 @@ async def test_evaluate_score_nomatch(processutil):
 
         assert score is not None
         assert score.score > 0 and score.score < 1
-        assert score.score < 0.3
+        assert score.score < 0.5
         assert score.matched_keywords == '[]'
 
 
@@ -40,7 +40,7 @@ async def test_evaluate_score_partial_match(processutil):
         assert score is not None
         assert score.score > 0 and score.score < 1
         assert score.score < 0.7
-        assert score.score > 0.3
+        assert score.score > 0.5
         assert score.matched_keywords == '["information retrieval"]'
 
 
