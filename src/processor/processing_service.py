@@ -29,7 +29,7 @@ class ProcessingService:
         Function to fetch unprocessed articles from DB
         """
         async with get_session() as session:
-            articles = await fetch_next_batch(session,5)
+            articles = await fetch_next_batch(session,settings.PROCESS_BATCH_SIZE)
 
             for article in articles:
                 await self.process_article(session,article)
