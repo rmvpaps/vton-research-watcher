@@ -29,7 +29,7 @@ async def test_evaluate_score_good_match(processutil):
 
         
 @pytest.mark.asyncio
-async def test_evaluate_score_no_match():
+async def test_evaluate_score_no_match(processutil):
         keywords = [
         "3D Reconstruction",
         "Photogrammetry",
@@ -49,7 +49,7 @@ async def test_evaluate_score_no_match():
 
 
 @pytest.mark.asyncio
-async def test_evaluate_score_partial_match():
+async def test_evaluate_score_partial_match(processutil):
         keywords = [
         "3D Reconstruction",
         "Photogrammetry",
