@@ -5,7 +5,7 @@ from typing import Optional
 class Settings(BaseSettings):
     scraper_mode: str = "html"
     processor_mode: str = "transformer"
-    llm_host:str=''
+    llm_host:str='https://api.groq.com/openai/v1'
     llm_api_key:str=''
     baseURL:str = "https://arxiv.org/list/cs.CV/pastweek"
     scrape_concurrency:int = 1

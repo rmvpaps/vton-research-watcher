@@ -1,5 +1,10 @@
 version: 0.2
 
+env:
+  secrets-manager:
+    # Use the name of your secret in AWS Secrets Manager
+    GROQ_API_KEY: "grok_api_key-ifUrUP"
+
 phases:
   install:
     runtime-versions:
@@ -20,7 +25,7 @@ phases:
       - docker build -t processor:v0 -f Dockerfile_processor .
       - echo "Running Tests inside the container..."
       # If this fails, the whole build fails and stops here
-      - docker run processor:v0 uv run pytest tests/processor/
+      - docker run -e GROQ_API_KEY=$GROQ_API_KEY processor:v0 uv run pytest tests/processor/
     finally:
       - echo Docker image build and test over
 
