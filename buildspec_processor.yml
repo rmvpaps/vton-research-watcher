@@ -3,7 +3,7 @@ version: 0.2
 env:
   secrets-manager:
     # Use the name of your secret in AWS Secrets Manager
-    GROQ_API_KEY: "grok_api_key-ifUrUP"
+    GROQ_API_KEY: "grok_api_key"
 
 phases:
   install:
