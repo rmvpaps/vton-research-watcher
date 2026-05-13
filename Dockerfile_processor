@@ -21,9 +21,9 @@ hf download 'BAAI/bge-small-en' --local-dir ./models/bge-small
 # Copy the whole project so shared/ is available
 COPY pyproject.toml uv.lock ./ 
 
-RUN uv sync --frozen --no-cache --no-install-project --no-clean
+RUN uv sync --frozen --no-cache --no-install-project --inexact
 
 COPY  . .
-RUN uv sync --frozen --no-cache --no-clean
+RUN uv sync --frozen --no-cache --inexact
 
 CMD ["uv","run","python", "-m", "processor.main"]
