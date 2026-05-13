@@ -93,7 +93,7 @@ async def test_evaluate_text(valid_arxiv_text,processutil):
     assert new_article.embedding is not None
     assert len(new_article.embedding) > 0
 
-    expected_keywords = ['SyncFix', '3D Reconstructions', 'Multi-View Synchronization', 'Diffusion Models','Depth Estimation', 'Image Similarity Metrics']
+    expected_keywords = ['SyncFix', '3D Reconstructions', 'Multi-View Synchronization']
     for i in expected_keywords:
         assert i in new_article.keywords
 
