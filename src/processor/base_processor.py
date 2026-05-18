@@ -5,8 +5,8 @@ from markitdown import MarkItDown
 import logging
 from io import BytesIO
 import httpx
-from sentence_transformers import SentenceTransformer
-
+from sentence_transformers import SentenceTransformer,models
+import os
 class BaseProcessor(ABC):
 
     @abstractmethod
@@ -31,14 +31,39 @@ class BaseProcessor(ABC):
     
 
 
+def manual_model_load(model_path):
+    logging.info(f"Manually loading BGE Pipeline from: {model_path}")
+    word_embedding_model = models.Transformer(model_path)
+
+    # 2. Load the Pooling layer pointing to the subfolder "1_Pooling"
+    pooling_path = os.path.join(model_path, "1_Pooling")
+    pooling_model = models.Pooling(pooling_path)
+
+    # 3. Load the Normalize layer (which requires no path config as it applies a mathematical function)
+    normalize_model = models.Normalize()
+
+    # 4. Bind them sequentially into the pipeline
+    model = SentenceTransformer(modules=[
+        word_embedding_model, 
+        pooling_model, 
+        normalize_model
+    ])
+    logging.info(f"successfully loaded BGE Pipeline from: {model_path}")
+    return model
+
 
 class ProcessorUtils:
     def __init__(self):
         self.md = MarkItDown()   
-        self.model = SentenceTransformer(
-            settings.embedding_path, 
-            device='cpu',
-            local_files_only=True)  # e.g., a SentenceTransformer instance
+        try:
+            self.model = SentenceTransformer(
+                settings.embedding_path, 
+                device='cpu',
+                local_files_only=True)  # e.g., a SentenceTransformer instance
+        except Exception as e:
+            logging.error(f"Loading directly from path {settings.embedding_path} failed")
+            logging.warning("Attempting manual load")
+            self.model = manual_model_load(settings.embedding_path)
 
     def encode(self,data, **kwargs):
         """

@@ -17,7 +17,7 @@
                 }
             },
 
-            "command": ["uv", "run", "--no-sync", "python", "-m", "processor.main"],
+            "command": ["uv", "run", "--no-sync","--directory","/app", "python", "-m", "processor.main"],
             "environmentFiles": [
                 {
                     "value": "arn:aws:s3:::rmvpapz-research-watcher/scraper-aws.env",
@@ -40,7 +40,7 @@
               },
               {
                 "name":"llm_api_key",
-                "valueFrom": "arn:aws:secretsmanager:us-east-1:703525589634:secret:grok_api_key-ifUrUP"
+                "valueFrom": "arn:aws:secretsmanager:us-east-1:703525589634:secret:grok_api_key-ifUrUP:grok_api_key::"
               }]
         }
     ], 
@@ -48,5 +48,8 @@
         "FARGATE"
     ], 
     "cpu": "1vCPU", 
-    "memory": "4096"
+    "memory": "4096",
+    "ephemeralStorage": {
+        "sizeInGiB": 30
+    }
 }
