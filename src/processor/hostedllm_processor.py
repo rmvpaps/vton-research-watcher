@@ -53,7 +53,7 @@ class HostedLLMProcessor(BaseProcessor):
             return RelevanceScore(article_id=article.id,score=0.0,reasoning="Error in processing")
         
 
-    async def evaluate_text(self, article:Article,fullText:str)->Enriched:
+    async def evaluate_text(self, article:Article,score:float,fullText:str)->Enriched:
         """Generate a summary, keep the summary vector, generate keywords from fullText"""
 
         try:
@@ -105,7 +105,8 @@ class HostedLLMProcessor(BaseProcessor):
                 vector = await asyncio.to_thread(self.encoding_model.encode, summary)
             else:
                 raise Exception("All chunks failed to give results")
-            enriched = Enriched.model_validate(article)
+            
+            enriched = Enriched(**article.model_dump(),score=score)
             enriched.summary = summary
             enriched.keywords = keywords
             enriched.embedding = vector

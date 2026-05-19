@@ -3,7 +3,7 @@ import respx
 import httpx
 
 from processor.simple_processor import simpleTransformerProcessor
-from shared import Article 
+from shared import Article ,ArticleState
 
 @pytest.mark.asyncio
 async def test_evaluate_score_match(processutil):
@@ -137,11 +137,11 @@ async def test_evaluate_text(valid_arxiv_text,processutil):
                   arxiv_id="123",
                   fetched_at=datetime.now(timezone.utc),
                   processed=False,
-                  status="unknown")
+                  status=ArticleState.UNKNOWN)
     sample_text = valid_arxiv_text
 
      # Action
-    new_article = await processor.evaluate_text(art, sample_text)
+    new_article = await processor.evaluate_text(art, 0.6,sample_text)
 
     # Assertions
     assert new_article.summary is not None

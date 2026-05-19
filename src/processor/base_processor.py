@@ -15,7 +15,7 @@ class BaseProcessor(ABC):
         pass
 
     @abstractmethod
-    async def evaluate_text(self, article:Article,fullText:str)->Enriched:
+    async def evaluate_text(self, article:Article,score:float, fullText:str)->Enriched:
         """Generate a summary, keep the summary vector, generate keywords from fullText"""
         pass
 

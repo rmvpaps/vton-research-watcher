@@ -133,7 +133,7 @@ class simpleTransformerProcessor(BaseProcessor):
             raise simpleTransformerProcessorError("Keyword generation Failed")
         
 
-    async def evaluate_text(self, article:Article, fullText:str)->Enriched:
+    async def evaluate_text(self, article:Article, score:float, fullText:str)->Enriched:
         """Generate a summary, keep the summary vector, generate keywords from fullText"""
         try:
             keywords = await self.generateKeywords(article=article,actualText=fullText)
@@ -143,7 +143,7 @@ class simpleTransformerProcessor(BaseProcessor):
             else:
                 vector = await asyncio.to_thread(self.encoding_model.encode, article.abstract)
 
-            enriched = Enriched.model_validate(article)
+            enriched = Enriched(**article.model_dump(),score=score)
             enriched.summary = summary
             enriched.keywords = keywords
             enriched.embedding = vector

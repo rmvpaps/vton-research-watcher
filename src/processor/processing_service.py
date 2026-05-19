@@ -1,4 +1,4 @@
-from shared import Article,settings,fetch_next_batch,get_session,updateArticle,saveRelevanceScore,saveKeywords
+from shared import Article,settings,fetch_next_batch,get_session,updateArticle,saveRelevanceScore,saveKeywords,ArticleState
 import httpx
 from processor import ProcessorFactory,ProcessorUtils
 from typing import List
@@ -47,7 +47,7 @@ class ProcessingService:
         
         if result.score < 0.5:
             article.processed = True
-            article.status = 'rejected'
+            article.status =ArticleState.REJECTED
             await updateArticle(session,article)
             logging.info(f"Rejecting artice {article.arxiv_id} as score is less - {result.score}")
             return
@@ -56,7 +56,7 @@ class ProcessingService:
         full_text = await self.util.download_get_text(article.arxiv_id)
         
         # 4. ENRICHMENT & VECTORIZATION
-        enriched_data = await self.processor.evaluate_text(article, full_text)
+        enriched_data = await self.processor.evaluate_text(article,result.score, full_text)
         
         
         # 5. FINAL STORAGE
@@ -66,5 +66,5 @@ class ProcessingService:
 
         article.summary = enriched_data.summary
         article.processed = True
-        article.status = 'indexed'
+        article.status = ArticleState.INDEXED
         await updateArticle(session,article)

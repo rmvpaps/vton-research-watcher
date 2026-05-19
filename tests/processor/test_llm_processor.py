@@ -3,7 +3,7 @@ import respx
 import httpx
 
 from processor import HostedLLMProcessor,ProcessorUtils
-from shared import Article,settings 
+from shared import Article,settings ,ArticleState
 
 @pytest.mark.asyncio
 async def test_evaluate_score_good_match(processutil):
@@ -80,11 +80,11 @@ async def test_evaluate_text(valid_arxiv_text,processutil):
                   arxiv_id="123",
                   fetched_at=datetime.now(timezone.utc),
                   processed=False,
-                  status="unknown")
+                  status=ArticleState.UNKNOWN)
     sample_text = valid_arxiv_text
 
      # Action
-    new_article = await processor.evaluate_text(art, sample_text)
+    new_article = await processor.evaluate_text(art, 0.6,sample_text)
 
     # Assertions
     assert new_article.summary is not None

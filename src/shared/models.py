@@ -2,8 +2,15 @@ from sqlmodel import SQLModel, Field, Column, Relationship
 #from pydantic import HttpUrl,List,BaseModel
 from datetime import date, datetime,timezone
 from typing import Optional,List
+from enum import Enum
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
+
+
+class ArticleState(str, Enum):
+    INDEXED = "indexed"
+    REJECTED = "rejected"
+    UNKNOWN = "unknown"
 
 #SQL models for storing article and score
 class ArticleBase(SQLModel, table=False):
@@ -22,7 +29,7 @@ class Article(ArticleBase, table=True):
         sa_column=sa.Column(sa.DateTime(timezone=True)),
         default=None)
     processed: bool = Field(default=False)
-    status: str = Field(default="unknown")
+    status: ArticleState = Field(default=ArticleState.UNKNOWN)
 
     # # Relationships (Allows you to access data via article.embedding or article.keywords)
     # embedding: Optional["BGEEmbedding"] = Relationship(back_populates="article")
@@ -38,9 +45,12 @@ class Enriched(SQLModel,table=False):
     summary: Optional[str] = None
     scraped_at: Optional[datetime] = None
     processed: bool 
-    status: str 
+    score: Optional[float] = 0.0
+    status: ArticleState = Field(default=ArticleState.UNKNOWN)
     embedding: Optional[List[float]] = []
     keywords: Optional[List[str]] = []
+
+
 
 class RelevanceScore(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -56,12 +66,12 @@ class RelevanceScore(SQLModel, table=True):
 
 
 
-class BGEEmbedding(SQLModel, table=True):
-    # Link it directly to the Article ID
-    article_id: int = Field(foreign_key="article.id", primary_key=True)
+# class BGEEmbedding(SQLModel, table=True):
+#     # Link it directly to the Article ID
+#     article_id: int = Field(foreign_key="article.id", primary_key=True)
     
-    # 384 dimensions for BGE-Small
-    vector: List[float] = Field(sa_column=Column(Vector(384)))
+#     # 384 dimensions for BGE-Small
+#     vector: List[float] = Field(sa_column=Column(Vector(384)))
 
 
 # Note: Storing each keyword as a row is better for 't3.micro' filtering than a JSON list.
