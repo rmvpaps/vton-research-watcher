@@ -36,6 +36,7 @@ Created docker file and push to ecr
 ```
 docker build -t scraper:v0 -f Dockerfile_scraper .
 aws login --profile rmvpapz
+aws ecr create-repository --repository-name research-watcher --region us-east-1
 docker tag scraper:v0 {$ACCOUNT__ID}.dkr.ecr.us-east-1.amazonaws.com/research-watcher
 aws ecr get-login-password --region us-east-1 --profile rmvpapz| docker login --username AWS --password-stdin {$ACCOUNT__ID}.dkr.ecr.us-east-1.amazonaws.com/research-watcher
 docker push {$ACCOUNT__ID}.dkr.ecr.us-east-1.amazonaws.com/research-watcher

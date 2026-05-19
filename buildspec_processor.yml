@@ -1,0 +1,74 @@
+version: 0.2
+
+env:
+  secrets-manager:
+    # Use the name of your secret in AWS Secrets Manager
+    GROQ_API_KEY: "grok_api_key:grok_api_key"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.13
+    commands:
+      - echo "Installing uv..."
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+      - echo attempting docker
+      - aws ecr get-login-password | docker login --username AWS --password-stdin $REPOSITORY_URI
+    finally:
+      - echo Install and docker login stage over 
+
+  build:
+    commands:
+      - echo Entered the build phase...
+      - echo Build started on `date`
+      - echo "Building image..."
+      - docker build -t processor:v0 -f Dockerfile_processor .
+      - echo "Running Tests inside the container..."
+      # If this fails, the whole build fails and stops here
+      - docker run -e llm_api_key=$GROQ_API_KEY processor:v0 uv run pytest tests/processor/
+    finally:
+      - echo Docker image build and test over
+
+  post_build:
+    commands:
+      - echo Entered the post_build phase...
+      - echo Build completed on `date`
+      - echo "Tests passed! Pushing to ECR..."
+      - docker tag processor:v0 $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - docker push $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      
+
+      - echo "Updating processor task..."
+      - |
+        RAW_PROCESSOR=$(aws ecs describe-task-definition --task-definition aws-processor --query 'taskDefinition' --output json)
+        NEW_PROCESSOR_DEF=$(echo $RAW_PROCESSOR | jq --arg IMAGE "$REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION" '
+          .containerDefinitions[0].image = $IMAGE | 
+          del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+        ')
+        PROCESSOR_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_PROCESSOR_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
+
+      - echo "Updating EventBridge Target..."
+      - |
+        # 1. Construct the Targets JSON safely
+        TARGETS_JSON='[
+          {
+            "Id": "1",
+            "Arn": "'$MY_TARGET_ARN'",
+            "RoleArn": "'$MY_ROLE_ARN'",
+            "EcsParameters": {
+              "TaskDefinitionArn": "'$PROCESSOR_ARN'",
+              "TaskCount": 1,
+              "LaunchType": "FARGATE",
+              "NetworkConfiguration": {
+                "awsvpcConfiguration": {
+                  "Subnets": ["'$SUBNET_ID'"],
+                  "SecurityGroups": ["'$SG_ID'"],
+                  "AssignPublicIp": "ENABLED"
+                }
+              }
+            }
+          }
+        ]'
+        
+        # 2. Pass the variable to the CLI
+        aws events put-targets --rule $MY_CRON_RULE --targets "$TARGETS_JSON"

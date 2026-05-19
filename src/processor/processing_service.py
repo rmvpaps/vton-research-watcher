@@ -32,7 +32,7 @@ class ProcessingService:
         Function to fetch unprocessed articles from DB
         """
         async with get_session() as session:
-            articles = await fetch_next_batch(session,5)
+            articles = await fetch_next_batch(session,settings.PROCESS_BATCH_SIZE)
 
             for article in articles:
                 await self.process_article(session,article)
@@ -53,7 +53,7 @@ class ProcessingService:
             return
 
 
-        full_text = await self.downloader.download_get_text(article.arxiv_id)
+        full_text = await self.util.download_get_text(article.arxiv_id)
         
         # 4. ENRICHMENT & VECTORIZATION
         enriched_data = await self.processor.evaluate_text(article, full_text)

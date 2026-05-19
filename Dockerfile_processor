@@ -1,0 +1,29 @@
+# 1. Use the official uv image to get the binary
+FROM ghcr.io/astral-sh/uv:latest AS uv
+
+# 2. Use a standard Python image for your app
+#FROM python:3.13-slim
+FROM public.ecr.aws/docker/library/python:3.13-slim
+
+# 3. Copy the uv binary from the uv image
+COPY --from=uv /uv /bin/uv
+
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_PYTHON_DOWNLOADS=never
+
+WORKDIR /app
+
+RUN uv pip install "huggingface_hub[cli]" --system
+
+RUN hf download 'google-t5/t5-small' --local-dir ./models/t5-small  && \
+hf download 'sentence-transformers/all-MiniLM-L6-v2' --local-dir ./models/allMiniLM  && \
+hf download 'BAAI/bge-small-en' --local-dir ./models/bge-small 
+# Copy the whole project so shared/ is available
+COPY pyproject.toml uv.lock ./ 
+
+RUN uv sync --frozen --no-cache --no-install-project --inexact
+
+COPY  . .
+RUN uv sync --frozen --no-cache --inexact
+
+CMD ["uv","run","python", "-m", "processor.main"]
