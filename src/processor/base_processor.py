@@ -79,7 +79,7 @@ class ProcessorUtils:
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
                 raw = await client.get(f"{settings.ARXIV_PDF_URL}{id}")
-
+                logging.info("Retrieved pdf from site")
                 result = self.md.convert(BytesIO(raw.content))
             
                 # This gives you the clean Markdown text

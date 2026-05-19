@@ -77,16 +77,20 @@ class simpleTransformerProcessor(BaseProcessor):
     async def generateSummary(self, article:Article, actualText:str)->str:
         """Generate Summary from abstract and title and actual text"""
         try:
-
+            summarized_text = ""
             textSize = len(actualText)
+            logging.info(f"Processing text of size {textSize}")
             for start in range(0,textSize,2000):
                 if start==0:
                     chunk = actualText[start:start+2000]
                 else:
                     chunk = actualText[start-50:start+2000]
+                
+                logging.info(f"Processing chunk till {start+2000}")
                 prompt = f"summarize: {chunk}"
                 word_count = len(chunk.split())
-                calculated_max = min(40, int(word_count * 0.5))
+                calculated_max = min(50, word_count//2)
+                calculated_min = min(word_count//4, 40)
 
                 inputs = self.tokenizer.encode(
                     prompt,
@@ -98,13 +102,14 @@ class simpleTransformerProcessor(BaseProcessor):
                 summary_ids = self.summarizer.generate(
                     inputs,
                     max_length=calculated_max,
-                    min_length=20,
+                    min_length=calculated_min,
                     length_penalty=2.0,
                     num_beams=4,
                     early_stopping=True
                 )
 
                 summary = self.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+                s_word_count = len(summary.split())
                 # summary_config =  {
                 #     "max_new_tokens": calculated_max,
                 #     "min_length": 15,
@@ -115,8 +120,14 @@ class simpleTransformerProcessor(BaseProcessor):
                 # }
 
                 # summary = self.summarizer(prompt, **summary_config)
-                print(word_count,calculated_max,summary)
-                return summary
+                logging.debug(f"Chunk wordcount:{word_count}, chunk summary words {s_word_count}")
+                summarized_text+=summary
+
+
+            #TODO: one last round on final summary if very large
+            
+
+            return summarized_text
         except Exception as e:
             logging.error(f"Error in summary generation of {article.arxiv_id} {e}")
             raise simpleTransformerProcessorError("Summary generation Failed")
@@ -136,6 +147,7 @@ class simpleTransformerProcessor(BaseProcessor):
     async def evaluate_text(self, article:Article, score:float, fullText:str)->Enriched:
         """Generate a summary, keep the summary vector, generate keywords from fullText"""
         try:
+            logging.info("Processing full text")
             keywords = await self.generateKeywords(article=article,actualText=fullText)
             summary = await self.generateSummary(article=article,actualText=fullText)
             if summary is not None:

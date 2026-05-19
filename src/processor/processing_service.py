@@ -54,7 +54,8 @@ class ProcessingService:
             logging.info(f"Rejecting artice {article.arxiv_id} as score is less - {result.score}")
             return
 
-
+        logging.info(f"Getting full text for article {article.arxiv_id}")
+            
         full_text = await self.util.download_get_text(article.arxiv_id)
         
         # 4. ENRICHMENT & VECTORIZATION
