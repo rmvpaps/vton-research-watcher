@@ -21,7 +21,7 @@ async def read_articles(
 ) -> List[Enriched]:
     """Returns all articles in the system"""
     query = select(Article, RelevanceScore).join(
-        RelevanceScore, Article.id == RelevanceScore.article_id
+        RelevanceScore, Article.id == RelevanceScore.article_id,isouter=True
     )
     if sort_by_score:
         query = query.order_by(desc(RelevanceScore.score))
@@ -44,11 +44,15 @@ async def read_articles(
     response_data = []
     for row in results.all():
         article_obj, score_obj = row
-        print(article_obj)
-            
-        # Merge fields into our flat Pydantic/SQLModel response structure
-        response_data.append(
-            Enriched(**article_obj.model_dump(),score=score_obj.score)
-        )
+
+        if score_obj:    
+            # Merge fields into our flat Pydantic/SQLModel response structure
+            response_data.append(
+                Enriched(**article_obj.model_dump(),score=score_obj.score)
+            )
+        else:
+            response_data.append(
+                Enriched(**article_obj.model_dump())
+            )
     return response_data
 
