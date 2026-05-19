@@ -87,14 +87,18 @@ db_sslstring=ssl
 
 ## API
 
-- Fetch API to get the articles in the order of relevance
-- Provide a manual score to be used in training later on
+- Fetch API to get the articles in the order of relevance/date
+- Keyword based search
 - TODO: Keyword/phrase based vector search (RAG)
 - TODO: Librarian agentic workflow to bring down relevant documents on the topic
 
 ![API Flow](images/APIflow.svg)
 
+### To run locally
 
+```
+fastapi dev .\src\api\main.py
+```   
 ## REACT WEB APP
 
 - TODO: App that consumes the API
