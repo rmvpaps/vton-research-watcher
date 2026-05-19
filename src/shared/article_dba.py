@@ -87,9 +87,9 @@ async def saveKeywords(session,keywords:List[str],article:Article):
         await session.commit()    
     except Exception as e:
         logging.error(f"Error in saving keywords for article {article.arxiv_id} - {e}")
-        session.rollback()
+        await session.rollback()
     finally:
-        session.close()
+        await session.close()
     
 
           
