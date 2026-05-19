@@ -48,6 +48,8 @@ class ProcessingService:
         if result.score < 0.5:
             article.processed = True
             article.status =ArticleState.REJECTED
+            
+            await saveRelevanceScore(session,result)
             await updateArticle(session,article)
             logging.info(f"Rejecting artice {article.arxiv_id} as score is less - {result.score}")
             return
