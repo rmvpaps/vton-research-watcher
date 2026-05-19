@@ -1,6 +1,6 @@
 from shared import Article,settings,fetch_next_batch,get_session,updateArticle,saveRelevanceScore,saveKeywords
 import httpx
-from processor import ProcessorFactory,simpleFullTextExtractor
+from processor import ProcessorFactory,ProcessorUtils
 from typing import List
 import logging
 
@@ -20,9 +20,12 @@ class ProcessingService:
     Class that orchestrates simple abstract processing, deep text processing, vector storage
     """
     def __init__(self):
-        self.processor = ProcessorFactory.get_processor(settings.processor_mode,keywords=keyword_list)
-        self.downloader = simpleFullTextExtractor()
-
+        self.util = ProcessorUtils()
+        if settings.processor_mode == "llama":
+            self.processor = ProcessorFactory.get_processor(settings.processor_mode,keywords=keyword_list,encoding_model=self.util,api_key=settings.llm_api_key,provider_url=settings.llm_host)        
+        else:
+            self.processor = ProcessorFactory.get_processor(settings.processor_mode,keywords=keyword_list,encoding_model=self.util)
+        
 
     async def fetch_next_batch_and_process(self)->List[Article]:
         """

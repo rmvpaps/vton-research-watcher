@@ -1,12 +1,12 @@
 from processor import BaseProcessor
-from processor import simpleTransformerProcessor
+from processor import simpleTransformerProcessor,HostedLLMProcessor
 
 class ProcessorFactory:
     _processors = {
         "transformer": simpleTransformerProcessor,
         # "openai": 
         # "anthropic":
-        # "llama":
+        "llama": HostedLLMProcessor
     }
 
     @classmethod
