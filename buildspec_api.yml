@@ -27,7 +27,7 @@ phases:
       - cp -R src/api ./lambda_package/
       - cp -R src/shared ./lambda_package/
     finally:
-      - lambda package ready
+      - echo lambda package ready
 
 post_build:
     commands:
