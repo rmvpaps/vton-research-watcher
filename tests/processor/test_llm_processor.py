@@ -4,6 +4,8 @@ import httpx
 
 from processor import HostedLLMProcessor,ProcessorUtils
 from shared import Article,settings ,ArticleState
+from .fixtures import processutil
+
 
 @pytest.mark.asyncio
 async def test_evaluate_score_good_match(processutil):

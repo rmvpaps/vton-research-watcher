@@ -4,6 +4,7 @@ import httpx
 
 from processor.simple_processor import simpleTransformerProcessor
 from shared import Article ,ArticleState
+from .fixtures import processutil
 
 @pytest.mark.asyncio
 async def test_evaluate_score_match(processutil):

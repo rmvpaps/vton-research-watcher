@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from processor import ProcessorUtils
+
 
 @pytest.fixture
 def shared_data_dir():
@@ -106,7 +106,3 @@ def mock_get_session(mock_session):
     with patch("shared.database.get_session", _mock_get_session):
         yield mock_session
 
-@pytest.fixture
-def processutil():
-    util = ProcessorUtils()
-    return util
