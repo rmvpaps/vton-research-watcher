@@ -17,7 +17,8 @@ phases:
     commands:
       - echo "Creating a pristine isolated virtual environment..."
       - uv venv .lambda_venv
-      - uv sync --frozen --no-dev --venv .lambda_venv
+      - source .lambda_venv/bin/activate
+      - uv sync --frozen --no-dev --active
       - echo "Extracting runtime libraries to deployment folder..."
       # Copying out of site-packages preserves pure binary runtimes for Lambda
       - cp -R .lambda_venv/lib/python3.12/site-packages/* ./lambda_package/
