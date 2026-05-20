@@ -8,8 +8,9 @@ phases:
       - echo "Installing uv..."
       - curl -LsSf https://astral.sh/uv/install.sh | sh
       - export PATH="$HOME/.local/bin:$PATH"
+      - yum install -y zip
     finally:
-      - echo Install and docker login stage over 
+      - echo Install and docker login stage over
   pre_build:
     commands:
       - mkdir -p lambda_package
@@ -22,7 +23,7 @@ phases:
       - echo "Extracting runtime libraries to deployment folder..."
       # Copying out of site-packages preserves pure binary runtimes for Lambda
       - cp -R .lambda_venv/lib/python3.13/site-packages/* ./lambda_package/
-      
+
       - echo "Injecting application code modules..."
       - cp -R src/api ./lambda_package/
       - cp -R src/shared ./lambda_package/
@@ -30,13 +31,13 @@ phases:
       - echo lambda package ready
 
 post_build:
-    commands:
-      - echo "Generating final lean ZIP file..."
-      - cd lambda_package
-      - zip -r ../deployment_package.zip .
-      - cd ..
+  commands:
+    - echo "Generating final lean ZIP file..."
+    - cd lambda_package
+    - zip -r ../deployment_package.zip .
+    - cd ..
+    - echo "Zip creation complete!"
 
 artifacts:
   files:
     - deployment_package.zip
-      
