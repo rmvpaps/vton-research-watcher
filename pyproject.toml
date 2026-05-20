@@ -12,22 +12,31 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
-    "sqlmodel>=0.0.38",
+    "sqlmodel>=0.0.38",    
+    "pillow>=12.2.0",
+    "markitdown[pdf]>=0.1.5",
+    "pgvector>=0.4.2",
+    "fastapi[standard]>=0.136.1",
+    "alembic>=1.18.4",
+    "psycopg2-binary>=2.9.12",
+]
+
+[dependency-groups]
+dev = [
     "pytest>=9.0.3",
     "respx>=0.23.1",
     "pytest-asyncio>=1.3.0",
     "pytest-freezer>=0.4.9",
     "pytest-mock>=3.15.1",
-    "sentence-transformers>=5.4.1",
-    "pillow>=12.2.0",
-    "openai>=2.32.0",
-    "markitdown[pdf]>=0.1.5",
-    "pgvector>=0.4.2",
-    "keybert>=0.9.0",
-    "fastapi[standard]>=0.136.1",
-    "alembic>=1.18.4",
-    "psycopg2-binary>=2.9.12",
 ]
+
+[project.optional-dependencies]
+processor = [
+    "keybert>=0.9.0",
+    "openai>=2.32.0",
+    "sentence-transformers>=5.4.1",
+]
+
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

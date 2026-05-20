@@ -1,0 +1,40 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.13
+    commands:
+      - echo "Installing uv..."
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+    finally:
+      - echo Install and docker login stage over 
+  pre_build:
+    commands:
+      - mkdir -p lambda_package
+  build:
+    commands:
+      - echo "Creating a pristine isolated virtual environment..."
+      - uv venv .lambda_venv
+      - uv sync --frozen --no-dev --venv .lambda_venv
+      - echo "Extracting runtime libraries to deployment folder..."
+      # Copying out of site-packages preserves pure binary runtimes for Lambda
+      - cp -R .lambda_venv/lib/python3.12/site-packages/* ./lambda_package/
+      
+      - echo "Injecting application code modules..."
+      - cp -R src/api ./lambda_package/
+      - cp -R src/shared ./lambda_package/
+    finally:
+      - lambda package ready
+
+post_build:
+    commands:
+      - echo "Generating final lean ZIP file..."
+      - cd lambda_package
+      - zip -r ../deployment_package.zip .
+      - cd ..
+
+artifacts:
+  files:
+    - deployment_package.zip
+      
