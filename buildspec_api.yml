@@ -21,7 +21,7 @@ phases:
       - uv sync --frozen --no-dev --active
       - echo "Extracting runtime libraries to deployment folder..."
       # Copying out of site-packages preserves pure binary runtimes for Lambda
-      - cp -R .lambda_venv/lib/python3.12/site-packages/* ./lambda_package/
+      - cp -R .lambda_venv/lib/python3.13/site-packages/* ./lambda_package/
       
       - echo "Injecting application code modules..."
       - cp -R src/api ./lambda_package/
