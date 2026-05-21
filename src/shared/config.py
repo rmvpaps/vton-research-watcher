@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     embedding_path:str = "/app/models/bge-small"
     keybert_path:str = "/app/models/allMiniLM"
     PROCESS_BATCH_SIZE:int = 5
+    STAGE_NAME:str = ""
     @computed_field
     @property
     def database_url(self) -> str:

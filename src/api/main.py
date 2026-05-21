@@ -3,9 +3,15 @@ from api.v1.router import v1_router
 from sqlmodel import SQLModel
 from shared import settings
 from mangum import Mangum
+import os
 
+STAGE = os.environ.get("STAGE_NAME", "") 
+ROOT_PATH = f"/{STAGE}" if STAGE else ""
 
-app = FastAPI()
+app = FastAPI(
+    title="Research Watcher API",
+    root_path=ROOT_PATH
+)
 handler = Mangum(app)
 
 

@@ -29,7 +29,7 @@ class Article(ArticleBase, table=True):
         sa_column=sa.Column(sa.DateTime(timezone=True)),
         default=None)
     processed: bool = Field(default=False)
-    status: ArticleState = Field(sa_column=String,default=ArticleState.UNKNOWN)
+    status: str = Field(default="unknown")
 
     # # Relationships (Allows you to access data via article.embedding or article.keywords)
     # embedding: Optional["BGEEmbedding"] = Relationship(back_populates="article")
