@@ -3,7 +3,7 @@ version: 0.2
 env:
   secrets-manager:
     # Use the name of your secret in AWS Secrets Manager
-    MY_DATABASE_PASSWORD: "rds!db-6c4a6398-7b05-4750-b0ff-395702773b38-GgSZLE:password::"
+    MY_DATABASE_PASSWORD: "rds!db-6c4a6398-7b05-4750-b0ff-395702773b38:password"
 
 phases:
   install:
