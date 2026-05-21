@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, Field, Column, Relationship
+from sqlmodel import SQLModel, Field, Column, Relationship,String
 #from pydantic import HttpUrl,List,BaseModel
 from datetime import date, datetime,timezone
 from typing import Optional,List
@@ -29,7 +29,7 @@ class Article(ArticleBase, table=True):
         sa_column=sa.Column(sa.DateTime(timezone=True)),
         default=None)
     processed: bool = Field(default=False)
-    status: ArticleState = Field(default=ArticleState.UNKNOWN)
+    status: ArticleState = Field(sa_column=String,default=ArticleState.UNKNOWN)
 
     # # Relationships (Allows you to access data via article.embedding or article.keywords)
     # embedding: Optional["BGEEmbedding"] = Relationship(back_populates="article")
@@ -46,7 +46,7 @@ class Enriched(SQLModel,table=False):
     scraped_at: Optional[datetime] = None
     processed: bool 
     score: Optional[float] = 0.0
-    status: ArticleState = Field(default=ArticleState.UNKNOWN)
+    status: ArticleState = Field(sa_column=String,default=ArticleState.UNKNOWN)
     embedding: Optional[List[float]] = []
     keywords: Optional[List[str]] = []
 
