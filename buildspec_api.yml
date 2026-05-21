@@ -32,12 +32,10 @@ phases:
 
   post_build:
     commands:
-      - echo "Generating final lean ZIP file..."
-      - cd lambda_package
-      - zip -r ../deployment_package.zip .
-      - cd ..
-      - echo "Zip creation complete!"
+      - echo "Letting CodeBuild handle the artifact bundling of lambda_package"
 
 artifacts:
   files:
-    - deployment_package.zip
+    - "**/*"
+  base-directory: lambda_package
+  discard-paths: no
