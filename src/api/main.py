@@ -2,7 +2,10 @@ from fastapi import FastAPI
 from api.v1.router import v1_router
 from sqlmodel import SQLModel
 from shared import settings
+from mangum import Mangum
+
 app = FastAPI()
+handler = Mangum(app)
 
 @app.on_event("startup")
 async def on_startup():
