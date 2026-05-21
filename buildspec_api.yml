@@ -1,5 +1,10 @@
 version: 0.2
 
+env:
+  secrets-manager:
+    # Use the name of your secret in AWS Secrets Manager
+    MY_DATABASE_PASSWORD: "rds!db-6c4a6398-7b05-4750-b0ff-395702773b38-GgSZLE:password::"
+
 phases:
   install:
     runtime-versions:
@@ -27,6 +32,10 @@ phases:
       - echo "Injecting application code modules..."
       - cp -R src/api ./lambda_package/
       - cp -R src/shared ./lambda_package/
+      - echo "Fetching environment file from S3..."
+      - aws s3 cp s3://rmvpapz-research-watcher/scraper-aws.env ./lambda_package/.env
+      - echo "" >> ./lambda_package/.env
+      - echo "POSTGRES_PASSWORD=${MY_DATABASE_PASSWORD}" >> ./lambda_package/.env
     finally:
       - echo lambda package ready
 
