@@ -31,7 +31,7 @@ def upgrade() -> None:
     sa.Column('summary', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('scraped_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('processed', sa.Boolean(), nullable=False),
-    sa.Column('status', sa.Enum('INDEXED', 'REJECTED', 'UNKNOWN', name='articlestate'), nullable=False),
+    sa.Column('status', sa.String(), nullable=False, server_default='unknown'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_article_arxiv_id'), 'article', ['arxiv_id'], unique=True)
