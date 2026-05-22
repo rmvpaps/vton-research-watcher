@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 from shared.models import SQLModel
+from shared.usermodels import User,UserInDB
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from shared import settings

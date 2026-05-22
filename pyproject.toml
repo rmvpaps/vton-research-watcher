@@ -18,6 +18,8 @@ dependencies = [
     "alembic>=1.18.4",
     "psycopg2-binary>=2.9.12",
     "mangum>=0.21.0",
+    "pyjwt>=2.13.0",
+    "pwdlib[argon2]>=0.3.0",
 ]
 
 [dependency-groups]

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     keybert_path:str = "/app/models/allMiniLM"
     PROCESS_BATCH_SIZE:int = 5
     STAGE_NAME:str = ""
+    SECRET_KEY:str="906b5f658f12150a14cc8cf4287489f9eed95df70dfc906159d825b662d6a668"
     @computed_field
     @property
     def database_url(self) -> str:
