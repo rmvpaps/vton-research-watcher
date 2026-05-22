@@ -5,15 +5,15 @@ from shared import settings
 from mangum import Mangum
 import os
 
-STAGE = os.environ.get("STAGE_NAME", "") 
-ROOT_PATH = f"/{STAGE}" if STAGE else ""
+STAGE = settings.STAGE_NAME 
+
 
 app = FastAPI(
     title="Research Watcher API",
-    root_path=ROOT_PATH
+    root_path=f"/{STAGE}" if STAGE else None
 )
-handler = Mangum(app)
 
+handler = Mangum(app)
 
 
 CACHED_SECRET = None
