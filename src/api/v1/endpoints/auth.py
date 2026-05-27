@@ -11,7 +11,7 @@ from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 from pydantic import BaseModel
 import asyncio
-
+STAGE=f"/{settings.STAGE_NAME }" if settings.STAGE_NAME  else ""
 
 router = APIRouter()
 SessionDep = Annotated[AsyncSession, Depends(get_session_dep)]
@@ -27,7 +27,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 password_hash = PasswordHash.recommended()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{STAGE}/v1/token")
 
 
 
