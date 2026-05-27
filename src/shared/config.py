@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     scrape_concurrency: int = 2
     scrape_window_rate_min: int = 10
     scrape_delay_seconds: float = 5.0
-    dummy:bool = True
+    defaultuser:int = 0
     summarizer_path:str = "/app/models/t5-small"
     embedding_path:str = "/app/models/bge-small"
     keybert_path:str = "/app/models/allMiniLM"

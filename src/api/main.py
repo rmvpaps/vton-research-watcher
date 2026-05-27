@@ -3,7 +3,7 @@ from api.v1.router import v1_router
 from sqlmodel import SQLModel
 from shared import settings
 from mangum import Mangum
-import os
+import logging
 from api.utils import create_default_user
 
 STAGE = settings.STAGE_NAME 
@@ -25,7 +25,10 @@ async def on_startup():
     #TODO:Get secret from secret manager
 
     #CREATE DEFAULT USER
-    #await create_default_user()
-
+    if settings.defaultuser == 1:
+        try:
+            await create_default_user()
+        except Exception as e:
+            logging.error(f"Default user creation failed {e}")
 
 app.include_router(v1_router)
