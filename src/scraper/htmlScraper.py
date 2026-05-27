@@ -99,8 +99,6 @@ class HtmlScraper(BaseScraper):
         
         try:
             async with asyncio.TaskGroup() as tg:
-                if settings.dummy:
-                    id_list = id_list[0:3]
                 for article_id in id_list:
                     # We create and store task references to collect results later
                     task = tg.create_task(self.fetchPaperDetails(client, article_id))
