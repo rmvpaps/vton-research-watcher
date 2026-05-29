@@ -3,7 +3,9 @@ from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,Arti
 from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter
 from sqlmodel import Field, Session, SQLModel, create_engine, select,desc
 from typing import List,Optional
-import asyncio
+from api import get_current_user
+from shared.usermodels import User
+from typing import Annotated
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session_dep)]
 
@@ -62,10 +64,11 @@ async def read_articles(
 @router.get("/search/keyword", response_model=List[Enriched])
 async def search_articles_by_keyword(
     session: SessionDep,
+    current_user: Annotated[User, Depends(get_current_user)],
     q: str = Query(..., min_length=1, description="The keyword or tag to search for"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    sort_by_score: bool = False
+    sort_by_score: bool = False,
 ):
     """
     Joins with the keywords table to find articles explicitly tagged
