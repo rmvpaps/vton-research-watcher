@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from api.v1.router import v1_router
 from sqlmodel import SQLModel
 from shared import settings
@@ -7,7 +9,8 @@ import logging
 from api.utils import create_default_user
 
 STAGE = settings.STAGE_NAME 
-
+logger = logging.getLogger("ArxivWatcherAPI")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 app = FastAPI(
     title="Research Watcher API",
