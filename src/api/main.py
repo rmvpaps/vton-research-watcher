@@ -7,7 +7,7 @@ from shared import settings
 from mangum import Mangum
 import logging
 from api.utils import create_default_user
-
+from fastapi.middleware.cors import CORSMiddleware
 STAGE = settings.STAGE_NAME 
 logger = logging.getLogger("ArxivWatcherAPI")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -20,6 +20,18 @@ app = FastAPI(
 handler = Mangum(app)
 
 
+
+
+# 🔒 Configure CORS Origins
+origins = [ settings.FRONTEND_ORIGIN]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows GET, POST, OPTIONS, etc.
+    allow_headers=["*"],  # Allows Authorization, Content-Type, etc.
+)
 
 
 @app.on_event("startup")
