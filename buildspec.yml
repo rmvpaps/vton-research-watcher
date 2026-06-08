@@ -1,5 +1,11 @@
 version: 0.2
-
+env:
+  # 1. Ensure the fallback or primary name variable is declared
+  variables:
+    # This must match the exact key passed down by your CodePipeline/GitHub Actions environment env context
+    CLUSTER_NAME: "research-watcher" 
+    MIGRATE_TASK_NAME: "aws-migrate-helper"
+    SCRAPER_TASK_NAME: "aws-scraper"
 phases:
   install:
     runtime-versions:
@@ -34,7 +40,7 @@ phases:
       
       - echo "Registering migration task..."
       - |
-        RAW_DEF=$(aws ecs describe-task-definition --task-definition aws-migrate-helper --query 'taskDefinition' --output json)
+        RAW_DEF=$(aws ecs describe-task-definition --task-definition "$MIGRATE_TASK_NAME" --query 'taskDefinition' --output json)
         NEW_TASK_DEF=$(echo $RAW_DEF | jq --arg IMAGE "$REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION" '
           .containerDefinitions[0].image = $IMAGE | 
           del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
@@ -45,7 +51,7 @@ phases:
       # Wrap the entire command in quotes or use the pipe block to avoid YAML parsing errors
       - |
         TASK_ARN=$(aws ecs run-task \
-          --cluster research-watcher \
+          --cluster "$CLUSTER_NAME" \
           --task-definition "$NEW_REVISION_ARN" \
           --count 1 \
           --launch-type FARGATE \
@@ -53,11 +59,11 @@ phases:
           --query 'tasks[0].taskArn' --output text)
       
       - echo "Waiting for migration to finish..."
-      - aws ecs wait tasks-stopped --cluster research-watcher --tasks $TASK_ARN
+      - aws ecs wait tasks-stopped --cluster "$CLUSTER_NAME" --tasks $TASK_ARN
       
       - echo "Checking migration exit code..."
       - |
-        EXIT_CODE=$(aws ecs describe-tasks --cluster research-watcher --tasks $TASK_ARN --query 'tasks[0].containers[0].exitCode' --output text)
+        EXIT_CODE=$(aws ecs describe-tasks --cluster "$CLUSTER_NAME" --tasks $TASK_ARN --query 'tasks[0].containers[0].exitCode' --output text)
         if [ "$EXIT_CODE" -ne "0" ]; then
           echo "Migration failed with exit code $EXIT_CODE. Aborting."
           exit 1
@@ -65,7 +71,7 @@ phases:
 
       - echo "Updating scraper task..."
       - |
-        RAW_SCRAPER=$(aws ecs describe-task-definition --task-definition aws-scraper --query 'taskDefinition' --output json)
+        RAW_SCRAPER=$(aws ecs describe-task-definition --task-definition "$SCRAPER_TASK_NAME" --query 'taskDefinition' --output json)
         NEW_SCRAPER_DEF=$(echo $RAW_SCRAPER | jq --arg IMAGE "$REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION" '
           .containerDefinitions[0].image = $IMAGE | 
           del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)

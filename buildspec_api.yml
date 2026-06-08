@@ -1,9 +1,14 @@
 version: 0.2
 
 env:
-  secrets-manager:
-    # Use the name of your secret in AWS Secrets Manager
-    MY_DATABASE_PASSWORD: "rds!db-6c4a6398-7b05-4750-b0ff-395702773b38:password"
+  # 1. Ensure the fallback or primary name variable is declared
+  variables:
+    # This must match the exact key passed down by your CodePipeline/GitHub Actions environment env context
+    SECRET_NAME_VAR: "rds!db-6c4a6398-7b05-4750-b0ff-395702773b38" 
+    CONFIG_BUCKET_NAME: "rmvpapz-research-watcher"
+  # 2. Reference the variable string directly inside the key resolution block
+  secrets:
+    MY_DATABASE_PASSWORD: "$SECRET_NAME_VAR:password"
 
 phases:
   install:
@@ -33,7 +38,7 @@ phases:
       - cp -R src/api ./lambda_package/
       - cp -R src/shared ./lambda_package/
       - echo "Fetching environment file from S3..."
-      - aws s3 cp s3://rmvpapz-research-watcher/scraper-aws.env ./lambda_package/.env
+      - aws s3 cp "s3://$CONFIG_BUCKET_NAME/scraper-aws.env" ./lambda_package/.env
       - echo "" >> ./lambda_package/.env
       - echo "POSTGRES_PASSWORD=${MY_DATABASE_PASSWORD}" >> ./lambda_package/.env
     finally:

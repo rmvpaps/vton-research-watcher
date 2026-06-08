@@ -1,9 +1,14 @@
 version: 0.2
 
 env:
+  # 1. Ensure the fallback or primary name variable is declared
+  variables:
+    # This must match the exact key passed down by your CodePipeline/GitHub Actions environment env context
+    SECRET_NAME_VAR: "grok_api_key" 
+    TASK_NAME: "aws-processor"
   secrets-manager:
     # Use the name of your secret in AWS Secrets Manager
-    GROQ_API_KEY: "grok_api_key:grok_api_key"
+    GROQ_API_KEY: "$SECRET_NAME_VAR:grok_api_key"
 
 phases:
   install:
@@ -40,7 +45,7 @@ phases:
 
       - echo "Updating processor task..."
       - |
-        RAW_PROCESSOR=$(aws ecs describe-task-definition --task-definition aws-processor --query 'taskDefinition' --output json)
+        RAW_PROCESSOR=$(aws ecs describe-task-definition --task-definition "$TASK_NAME" --query 'taskDefinition' --output json)
         NEW_PROCESSOR_DEF=$(echo $RAW_PROCESSOR | jq --arg IMAGE "$REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION" '
           .containerDefinitions[0].image = $IMAGE | 
           del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
