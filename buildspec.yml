@@ -64,9 +64,21 @@ phases:
       - echo "Checking migration exit code..."
       - |
         EXIT_CODE=$(aws ecs describe-tasks --cluster "$CLUSTER_NAME" --tasks $TASK_ARN --query 'tasks[0].containers[0].exitCode' --output text)
-        if [ "$EXIT_CODE" -ne "0" ]; then
-          echo "Migration failed with exit code $EXIT_CODE. Aborting."
+        if [ "$EXIT_CODE" = "None" ] || [ -z "$EXIT_CODE" ]; then
+          echo "Critical Error: Task stopped but no exit code was recorded."
+          echo "This usually means the container crashed before your Python script could even boot."
+          echo "Checking the container stopped reason..."
+          
+          # Fetch and print the human-readable failure reason from AWS
+          STOP_REASON=$(aws ecs describe-tasks --cluster "$CLUSTER_NAME" --tasks "$TASK_ARN" --query 'tasks[0].stoppedReason' --output text)
+          echo "AWS Stopped Reason: $STOP_REASON"
+          
           exit 1
+        elif [ "$EXIT_CODE" -ne 0 ]; then
+          echo "Migration failed with script execution error code $EXIT_CODE. Aborting deployment."
+          exit 1
+        else
+          echo "✅ Migration executed cleanly with status code 0!"
         fi
 
       - echo "Updating scraper task..."
