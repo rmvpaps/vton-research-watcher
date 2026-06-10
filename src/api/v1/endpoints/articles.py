@@ -8,7 +8,7 @@ from shared.usermodels import User
 from typing import Annotated
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session_dep)]
-
+import datetime
 
 
 
@@ -19,7 +19,8 @@ async def read_articles(
     offset: int = Query(0, ge=0),
     processed: Optional[bool] = None,
     state: Optional[ArticleState] = None,
-    sort_by_score: bool = False  
+    sort_by_score: bool = False,
+    ids: Optional[List[int]] = Query(None) 
 ) -> List[Enriched]:
     """Returns all articles in the system"""
     query = select(Article, RelevanceScore).join(
@@ -35,7 +36,8 @@ async def read_articles(
         query = query.where(Article.processed == processed)
     if state is not None:
         query = query.where(Article.status == state)
-
+    if ids and len(ids)>0:
+        query = query.where(Article.id.in_(ids))
     # 3. Pagination
     query = query.offset(offset).limit(limit)
     
@@ -58,6 +60,29 @@ async def read_articles(
             )
     return response_data
 
+
+
+
+
+@router.get("/recent",response_model=List[Article])
+async def get_recent_articles(
+    session: SessionDep 
+) -> List[Article]:
+    """
+    Retrieves a list of all research article abstracts and keywords published 
+    within the last 7 days. Use this tool first when a user asks for recent research.
+    """
+    dt7days = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=27)
+    # 3. Pagination
+    query = select(Article.id,Article.abstract,Article.title,Article.arxiv_id,Article.status,Article.processed).where(Article.status == "indexed").where(Article.fetched_at >= dt7days)
+    
+    # 4. Execute Query
+    results = await session.exec(query)
+
+    #Transform the results -  since we have cap of 100, we can loop without performance hit
+    response_data = results.all()
+
+    return response_data
 
 
 # --- 2. KEYWORD EXACT MATCH SEARCH ---
