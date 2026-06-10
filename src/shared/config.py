@@ -36,10 +36,13 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         if self.db_type == "sqlite":
             return "sqlite+aiosqlite:///database.db"
-        ssl_string = self.db_sslstring + "=require"
+        ssl_string = ""
+        if self.db_sslstring and self.db_sslstring!="none":
+            ssl_string = self.db_sslstring + "=require"
         return f"{self.db_protocol}://{self.db_user}:{self.POSTGRES_PASSWORD}@{self.db_host}/{self.POSTGRES_DB}?{ssl_string}"
 
     class Config:
         env_file = ".env"
 
 settings = Settings()
+print(settings.database_url)
