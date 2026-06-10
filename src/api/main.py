@@ -6,7 +6,7 @@ from sqlmodel import SQLModel
 from shared import settings
 from mangum import Mangum
 import logging
-from api.utils import create_default_user
+from api.utils import create_default_user,get_secret_runtime
 from fastapi.middleware.cors import CORSMiddleware
 STAGE = settings.STAGE_NAME 
 logger = logging.getLogger("ArxivWatcherAPI")
@@ -38,8 +38,14 @@ app.add_middleware(
 @app.on_event("startup")
 async def on_startup():
     print(f"Registered tables: {SQLModel.metadata.tables.keys()}")
-    #TODO:Get secret from secret manager
-
+    #Get secret from secret manager
+    if settings.STAGE_NAME != "" and settings.POSTGRES_PASSWORD == "default123":
+        try:
+            settings.POSTGRES_PASSWORD = get_secret_runtime()
+        except Exception as e:
+            logging.error(f"Error in fetching secret {e}")
+            raise Exception(f"DB Passoword not loaded from SecretManager")
+        
     #CREATE DEFAULT USER
     if settings.defaultuser == 1:
         try:

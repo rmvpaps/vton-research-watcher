@@ -12,7 +12,7 @@ def get_secret_runtime():
     if CACHED_SECRET is not None:
         return CACHED_SECRET
 
-    secret_name = "your-staging-secret-name"
+    secret_name = "rds!db-6c4a6398-7b05-4750-b0ff-395702773b38"
     region_name = "us-east-1"  # Replace with your AWS region
 
     # Initialize the boto3 Secrets Manager client
