@@ -26,6 +26,12 @@ The project is deployed in AWS within free tier constraints
 
 ![Basic Architecture](images/AWS_architecture.png)
 
+The Terraform HCL code for the application is in https://github.com/rmvpaps/research-watcher-infra
+
+The Minimal React application to consume the APIs - https://github.com/rmvpaps/research-watcher-webapp
+
+A PoC using AWS Bedrock with openapi spec was given to fetch relevant articles and provide a summary which is not included in the architecture. 
+
 ## Local Development
 
 
