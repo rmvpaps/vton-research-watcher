@@ -80,3 +80,15 @@ class Keyword(SQLModel, table=True):
     article_id: int = Field(foreign_key="article.id")
     word: str = Field(index=True) # Index this for fast filtering
 
+
+class Stats(SQLModel, table=False):
+    monthCt: int 
+    dayCt:int
+    totalRelCt: int
+    totalCt: int
+
+
+class Message(SQLModel, table=False):
+    role: str # "user" or "assistant"
+    content: str
+

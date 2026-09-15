@@ -1,9 +1,10 @@
 from typing import Annotated
-from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword
-from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter
-from sqlmodel import Field, Session, SQLModel, create_engine, select,desc
+from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message
+from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter,Path
+from sqlmodel import Field, Session, SQLModel, create_engine, select,desc,func
 from typing import List,Optional
 from api import get_current_user
+from api.utils import answer_question_from_context_gemini
 from shared.usermodels import User
 from typing import Annotated
 router = APIRouter()
@@ -62,6 +63,80 @@ async def read_articles(
 
 
 
+@router.get("/keywords",response_model=List[str])
+async def get_keywords_for_article(
+    session: SessionDep,
+    id: int = Query(None)  
+) -> List[str]:
+    """
+    Retrieves the keywords for given article
+    """
+    query = select(Keyword.word).where(Keyword.article_id == id)
+    results = await session.exec(query)
+    response_data = results.all()
+
+    return response_data
+
+
+@router.post("/chat/{id}",response_model=Message)
+async def get_answer_from_article(
+    session: SessionDep,
+    messages: List[Message],  # FastAPI automatically treats this as the JSON Request Body
+    id: int = Path(..., description="The ID of the article to chat with")
+   
+) -> Message:
+    """
+    Retrieves the chat response for a question based on given article and message history
+    """
+    query = select(Article.title,Article.abstract, Article.summary).where(Article.status == "indexed").where(Article.id  == id)
+        
+    results = await session.exec(query)
+    response_data = results.one()
+
+    context = f"{response_data.title}\n\n{response_data.abstract}\n\n{response_data.summary}"
+
+    llm_response = await answer_question_from_context_gemini(context,messages)
+
+    return llm_response
+
+
+@router.get("/stats",response_model=Stats)
+async def get_system_stats(
+    session: SessionDep 
+) -> Stats:
+    """
+    Retrieves the daily, monthly, total relevant, total parsed abstracts
+    """
+    now = datetime.datetime.now(datetime.timezone.utc)
+    start_of_day = datetime.datetime(now.year, now.month, now.day)
+    start_of_month = datetime.datetime(now.year, now.month, 1)
+
+    # 1. Articles scraped today
+    stmt_d = select(func.count(Article.id)).where(Article.scraped_at >= start_of_day)
+    res_d = await session.exec(stmt_d)
+    day_ct = res_d.one()
+
+    # 2. Articles scraped this month
+    stmt_m = select(func.count(Article.id)).where(Article.scraped_at >= start_of_month)
+    res_m = await session.exec(stmt_m)
+    month_ct = res_m.one()
+
+    # 3. Total relevant/indexed articles
+    stmt_r = select(func.count(Article.id)).where(Article.status == ArticleState.INDEXED)
+    res_r = await session.exec(stmt_r)
+    total_rel_ct = res_r.one()
+
+    # 4. Total overall articles
+    stmt_t = select(func.count(Article.id))
+    res_t = await session.exec(stmt_t)
+    total_ct = res_t.one()
+
+    return Stats(
+        dayCt=day_ct,
+        monthCt=month_ct,
+        totalRelCt=total_rel_ct,
+        totalCt=total_ct,
+    )
 
 
 @router.get("/recent",response_model=List[Article])
