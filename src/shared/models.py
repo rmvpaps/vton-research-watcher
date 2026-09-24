@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, Field, Column, Relationship,String
+from sqlmodel import SQLModel, Field, Column, Relationship,String,JSON
 #from pydantic import HttpUrl,List,BaseModel
 from datetime import date, datetime,timezone
 from typing import Optional,List
@@ -17,6 +17,11 @@ class ArticleBase(SQLModel, table=False):
     arxiv_id: str = Field(unique=True, index=True)
     title: Optional[str]  = Field(default=None,min_length=5)
     abstract: str  = Field(min_length=10)
+    authors: Optional[List[str]]= Field(default=[], sa_type=JSON)
+    published_at: Optional[datetime] = Field(
+            sa_column=sa.Column(sa.DateTime(timezone=True)),
+            default=None)
+    source: Optional[str] = Field(default='ARXIV_CS', min_length=5)
     fetched_at: datetime = Field(
         sa_column=sa.Column(sa.DateTime(timezone=True), nullable=False),
         default_factory=lambda:datetime.now(timezone.utc))
@@ -30,10 +35,10 @@ class Article(ArticleBase, table=True):
         default=None)
     processed: bool = Field(default=False)
     status: str = Field(default="unknown")
+    #DENORMALIZED FIELDS - These are stored in the Article table for faster filtering and searching.
+    keywords: Optional[List[str]]= Field(default=[], sa_type=JSON)
 
-    # # Relationships (Allows you to access data via article.embedding or article.keywords)
-    # embedding: Optional["BGEEmbedding"] = Relationship(back_populates="article")
-    # keywords: List["Keyword"] = Relationship(back_populates="article")
+
 
 
 class Enriched(SQLModel,table=False):
@@ -47,7 +52,6 @@ class Enriched(SQLModel,table=False):
     processed: bool 
     score: Optional[float] = 0.0
     status: ArticleState = Field(sa_column=String,default=ArticleState.UNKNOWN)
-    embedding: Optional[List[float]] = []
     keywords: Optional[List[str]] = []
 
 
@@ -66,7 +70,7 @@ class RelevanceScore(SQLModel, table=True):
 
 
 
-# class BGEEmbedding(SQLModel, table=True):
+# class Embedding(SQLModel, table=True):
 #     # Link it directly to the Article ID
 #     article_id: int = Field(foreign_key="article.id", primary_key=True)
     

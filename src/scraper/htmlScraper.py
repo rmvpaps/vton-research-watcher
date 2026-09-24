@@ -17,7 +17,7 @@ from shared import ArticleBase,get_session,settings
 from typing import List
 from scraper.base_scraper import BaseScraper
 import re
-
+import datetime 
 CONCURRENCY_LIMIT = settings.scrape_concurrency
 ARXIV_ABS_URL = "https://arxiv.org/abs/"
 
@@ -121,8 +121,8 @@ class HtmlScraper(BaseScraper):
                 response = await client.get(url)
                 logging.info(f"[{time.strftime('%H:%M:%S')}] Received response from {url}, status: {response.status_code}")
                 #insert id into results
-                abstract,title = self.extract_summary_title(response.text)
-                currArticle = ArticleBase(arxiv_id=id,abstract=abstract,title=title)
+                abstract,title,authors,published_at = self.extract_summary_title(response.text)
+                currArticle = ArticleBase(arxiv_id=id,abstract=abstract,title=title,authors=authors,published_at=published_at)
                 return currArticle
                 # currArticle = await self.store_results(currArticle)
                 # return response.status_code
@@ -139,6 +139,8 @@ class HtmlScraper(BaseScraper):
     def extract_summary_title(self,html_content):
         summary = None
         title = None
+        authors=None
+        published_at=None
         # Parse HTML content with BeautifulSoup
         soup = BeautifulSoup(html_content, 'html.parser')
 
@@ -154,15 +156,27 @@ class HtmlScraper(BaseScraper):
 
         try:
             
-            # Find all blockquote tags containing blockquote tags
+            # Find all h1 tags within the div with id 'abs'
             headings = soup.find('div',attrs={'id':'abs'}).find('h1')
-
             title = ''.join(headings.find_all(string=True, recursive=False)).strip()
+            try:
+                # Find all class authors tags within the div with id 'abs'
+                authdiv = soup.find('div',attrs={'id':'abs'}).find('div',attrs={'class':'authors'})
+                authors = ''.join(authdiv.find_all(string=True, recursive=True)).strip().replace('Authors:','')
+                authors = authors.split(',')
+                print(authors,authdiv)
+                # Find all class dateline tags within the div with id 'abs'
+                datediv = soup.find('div',attrs={'id':'abs'}).find('div',attrs={'class':'dateline'})
+                date = ''.join(datediv.find_all(string=True, recursive=False)).strip().replace('[Submitted on ','').replace(']','')
+                print(date)
+                published_at = datetime.datetime.strptime(date, '%d %b %Y').replace(tzinfo=datetime.timezone.utc)
+            except Exception as e:
+                logging.error(f"Error in extracting author or date {e}")
         except Exception as e:
             logging.error(f"Error in extracting title {e}")
             raise HtmlStructureException("Invalid structure. Could not extract title")
 
-        return summary,title
+        return summary,title,authors,published_at
 
 
 

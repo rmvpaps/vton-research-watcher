@@ -1,6 +1,7 @@
 import pytest
 import respx
 import httpx
+import datetime 
 
 from scraper.htmlScraper import HtmlScraper,HtmlStructureException
  
@@ -61,11 +62,14 @@ async def test_extract_summary_title():
         scraper = HtmlScraper(base_url="https://arxiv.org")
      
         fake_html = "<html><div id='abs'><h1><span>Title:</span>SyncFix: Fixing 3D Reconstructions via Multi-View Synchronization</h1>" + \
+        "<div class='dateline'>[Submitted on 13 Apr 2026]</div>" + \
+        "<div class='authors'><span class='descriptor'>Authors:</span><a href='https://arxiv.org/search/cs?searchtype=author&amp;query=Li,+D' rel='nofollow'>Author 1</a>, <a href='https://arxiv.org/search/cs?searchtype=author&amp;query=Yadav,+A' rel='nofollow'>Author 2</a></div>"+ \
         "<blockquote><span class='descriptor'>Abstract:</span>We present SyncFix, a framework that enforces cross-view consistency during the diffusion-based refinement</blockquote></html>"
-        summary,title = scraper.extract_summary_title(fake_html)
+        summary,title,authors,published_at = scraper.extract_summary_title(fake_html)
         assert summary == "We present SyncFix, a framework that enforces cross-view consistency during the diffusion-based refinement"
         assert title == "SyncFix: Fixing 3D Reconstructions via Multi-View Synchronization"
-
+        assert authors == ['Author 1', ' Author 2']
+        assert published_at == datetime.datetime(2026, 4, 13, 0, 0, tzinfo=datetime.timezone.utc)
 
 
 
@@ -74,7 +78,7 @@ async def test_extract_summary_title():
 @pytest.mark.asyncio
 async def test_extract_summary_title_valid(valid_arxiv_abstract):
         scraper = HtmlScraper(base_url="https://arxiv.org")
-        summary,title = scraper.extract_summary_title(valid_arxiv_abstract)
+        summary,title,authors,published_at  = scraper.extract_summary_title(valid_arxiv_abstract)
 
 
 

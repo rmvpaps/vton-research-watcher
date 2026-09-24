@@ -169,6 +169,9 @@ async def test_fetch_paper_details_valid(valid_arxiv_abstract):
         assert article.arxiv_id == "2603.30045"
         assert len(article.title) > 0
         assert len(article.abstract) > 0
+        assert len(article.authors) > 0
+        assert article.published_at is not None
+
 
 
 @pytest.mark.asyncio
