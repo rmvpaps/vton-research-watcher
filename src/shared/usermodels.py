@@ -3,6 +3,7 @@ from typing import Optional,List
 
 class Token(SQLModel,table=False):
     access_token: str
+    refresh_token: str
     token_type: str
 
 

@@ -5,7 +5,7 @@ from typing import Annotated
 from shared import settings,get_session_dep
 from shared.usermodels import User,UserInDB,Token,TokenData
 import jwt
-from fastapi import Depends, APIRouter, HTTPException, status
+from fastapi import Depends, APIRouter, HTTPException, status, Response,Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
@@ -20,8 +20,8 @@ SessionDep = Annotated[AsyncSession, Depends(get_session_dep)]
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
+ACCESS_TOKEN_EXPIRE_MINUTES = 1
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 
@@ -65,7 +65,7 @@ async def authenticate_user(session:AsyncSession, email: str, password: str):
     return user
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -128,10 +128,53 @@ async def process_auth(session,username,password)->Token:
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
+    access_token = create_token(
+        data={"sub": user.email, "type":"access"}, expires_delta=access_token_expires
     )
-    return Token(access_token=access_token, token_type="bearer")
+    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    refresh_token = create_token(
+            data={"sub": user.email, "type":"refresh"}, expires_delta=refresh_token_expires
+        )
+
+    
+    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+
+
+
+async def process_refresh(session,refresToken)->Token:
+    logging.info(f"token_for_access_token")
+    try:
+        payload = jwt.decode(refresToken, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid token type"
+                )
+                
+        user_email = payload.get("sub")
+        logging.info(f"refresh for {user_email}")
+        #TODO: update DB for the user and add new refreshtoken
+            
+        # Generate new pair
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_token(
+            data={"sub": user_email, "type":"access"}, expires_delta=access_token_expires
+        )
+        refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        refresh_token = create_token(
+                data={"sub": user_email, "type":"refresh"}, expires_delta=refresh_token_expires
+            )
+
+            
+        return Token(access_token=access_token,refresh_token=refresh_token,  token_type="bearer")
+            
+    except jwt.JWTError:
+        raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid refresh token"
+                )
+
+
 
 
 class LoginRequest(BaseModel):
@@ -141,11 +184,27 @@ class LoginRequest(BaseModel):
 @router.post("/token")
 async def login_for_access_token_json(
     credentials: LoginRequest,
-    session: SessionDep
+    session: SessionDep,
+    response: Response
 ) -> Token:
     logging.info(f"JSON Login Handshake via Postman for: {credentials.username}")
-    return await process_auth(session, credentials.username, credentials.password)
+    MyToken =  await process_auth(session, credentials.username, credentials.password)
+    
+    return MyToken
 
+
+@router.post("/refresh-token")
+async def refresh_token_for_access_token_json(
+    session: SessionDep,
+    request: Request, response: Response
+) -> Token:
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing")
+
+    MyToken =  await process_refresh(session, refresToken=refresh_token)
+    
+    return MyToken
 
     
 @router.get("/users/me/")
