@@ -20,10 +20,28 @@ async def create_database():
         # If using an older version, remove 'WITH (FORCE)'
         await conn.execute(f'CREATE DATABASE "{settings.POSTGRES_DB}"')
         print(f"Database '{settings.POSTGRES_DB}' created successfully.")
+
     except Exception as e:
         print(f"Error creating database: {e}")
     finally:
         await conn.close()
+
+
+    new_db_conn = await asyncpg.connect(
+        user=settings.db_user, 
+        password=settings.POSTGRES_PASSWORD, 
+        host=settings.db_host, 
+        database=settings.POSTGRES_DB  # <-- Connect here!
+    )
+    
+    try:
+        # Create the 'vector' extension inside the actual target database
+        await new_db_conn.execute('CREATE EXTENSION IF NOT EXISTS vector')
+        print(f"Extension 'vector' enabled successfully in '{settings.POSTGRES_DB}'.")
+    except Exception as e:
+        print(f"Error creating 'vector' extension: {e}")
+    finally:
+        await new_db_conn.close()
 
 async def delete_database():
     # Connect to the default 'postgres' database

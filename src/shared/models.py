@@ -48,6 +48,7 @@ class Enriched(SQLModel,table=False):
     fetched_at: datetime 
     id: Optional[int] = None
     summary: Optional[str] = None
+    chunks: Optional[List[str]] = []
     scraped_at: Optional[datetime] = None
     processed: bool 
     score: Optional[float] = 0.0
@@ -70,12 +71,13 @@ class RelevanceScore(SQLModel, table=True):
 
 
 
-# class Embedding(SQLModel, table=True):
-#     # Link it directly to the Article ID
-#     article_id: int = Field(foreign_key="article.id", primary_key=True)
-    
-#     # 384 dimensions for BGE-Small
-#     vector: List[float] = Field(sa_column=Column(Vector(384)))
+class Embedding(SQLModel, table=True):
+    # Link it directly to the Article ID
+    article_id: int = Field(foreign_key="article.id", primary_key=True)
+    chunk_id: int = Field(primary_key=True)
+    chunk_text: str = Field(sa_column=Column(sa.Text),min_length=10)
+    # 384 dimensions for BGE-Small
+    vector: List[float] = Field(sa_column=Column(Vector(384)))
 
 
 # Note: Storing each keyword as a row is better for 't3.micro' filtering than a JSON list.

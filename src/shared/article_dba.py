@@ -1,5 +1,5 @@
-from shared import get_session
-from shared import Article,RelevanceScore,Keyword
+from shared.database import get_session
+from shared.models import Article,RelevanceScore,Keyword, Embedding,Enriched
 from sqlmodel import select
 from contextlib import asynccontextmanager
 import logging
@@ -92,4 +92,20 @@ async def saveKeywords(session,keywords:List[str],article:Article):
         await session.close()
     
 
-          
+async def saveEmbeddings(session,enriched:Enriched, vectors:List[List[float]]):
+    try:
+        for idx, chunk in enumerate(enriched.chunks):
+            embedding = Embedding(
+                article_id=enriched.id,
+                chunk_id=idx,
+                chunk_text=chunk,
+                vector=vectors[idx]
+            )
+            session.add(embedding)
+
+        await session.commit()    
+    except Exception as e:
+        logging.error(f"Error in saving embeddings for article {enriched.arxiv_id} - {e}")
+        await session.rollback()
+    finally:
+        await session.close()
