@@ -1,3 +1,5 @@
+import pathlib
+
 from processor import BaseProcessor,ProcessorUtils
 from shared.models import Article,RelevanceScore,Enriched
 from typing import List
@@ -6,12 +8,12 @@ import numpy as np
 import json 
 import logging
 from keybert import KeyBERT
-from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import AutoConfig, T5Tokenizer, T5ForConditionalGeneration
 from sentence_transformers import SentenceTransformer
-
+import os
 from shared import settings
-
-
+import yake
+from langchain_text_splitters import MarkdownTextSplitter
 
 class simpleTransformerProcessorError(Exception):
     pass
@@ -22,38 +24,53 @@ class simpleTransformerProcessor(BaseProcessor):
     """
 
     def __init__(self, keywords: List[str],encoding_model:ProcessorUtils):
-        self.keywords = keywords
+        if len(keywords) < 3:
+            raise ValueError("At least two keywords are required to define a domain and one additional keyword.")
+        self.domain = keywords[:2]
+        self.keywords = keywords[2:]
         self.encoding_model = encoding_model
-        self.kw_embeddings = self.encoding_model.encode(keywords)
+
+        self.kw_embeddings = self.encoding_model.encode(self.format_keyword_query())
         #keyword extraction and summary
-        kw_model = SentenceTransformer(
-            settings.keybert_path, 
-            device='cpu',
-            local_files_only=True)
-        self.kw_model = KeyBERT(model=kw_model)
+        # kw_model = SentenceTransformer(
+        #     settings.keybert_path, 
+        #     device='cpu',
+        #     local_files_only=True)
+        self.kw_model = KeyBERT(model=encoding_model.model)
+        clean_path = pathlib.Path(settings.summarizer_path).as_posix()
+        config = AutoConfig.from_pretrained(clean_path, local_files_only=True)
         self.summarizer = T5ForConditionalGeneration.from_pretrained(
-            settings.summarizer_path,
+            clean_path,
+            config=config,
             local_files_only=True)
         self.tokenizer = T5Tokenizer.from_pretrained(
-            settings.summarizer_path,
+            clean_path,
+            config=config,
             local_files_only=True
         )
 
 
-
+    def format_keyword_query(self) -> str:
+        keyword_str = ", ".join(self.keywords)
+        # Natural sentence template
+        return (
+            f"A research paper abstract in the domain of {self.domain[0]} and {self.domain[1]} "
+            f"focusing on topics like {keyword_str}."
+        )
 
     async def evaluate_abstract(self, article:Article)->RelevanceScore:
         """Match against keyword list and generate score"""
         abstract = article.abstract
         #direct match
         text = abstract.lower()
+        keywords = self.keywords + self.domain
         matched = []
-        for kw in self.keywords:
+        for kw in keywords:
             if kw.lower() in text:
                 matched.append(kw)
 
         matches = len(matched)
-        direct_score = matches / len(self.keywords) if self.keywords else 0
+        direct_score = matches / len(keywords) if keywords else 0
 
 
         # 2. Semantic Match Score (Cosine Similarity)
@@ -63,7 +80,7 @@ class simpleTransformerProcessor(BaseProcessor):
         # Calculate cosine similarity against all keywords and take the max or mean
         # Using numpy: (A dot B) / (normA * normB)
         similarities = np.dot(self.kw_embeddings, abs_embedding) / (
-            np.linalg.norm(self.kw_embeddings, axis=1) * np.linalg.norm(abs_embedding)
+            np.linalg.norm(self.kw_embeddings) * np.linalg.norm(abs_embedding)
         )
         semantic_score = np.max(similarities)
 
@@ -74,7 +91,7 @@ class simpleTransformerProcessor(BaseProcessor):
         
 
 
-    async def generateSummary(self, article:Article, actualText:str)->str:
+    async def generateSummary(self, article:Article, actualText:str,short=False)->str:
         """Generate Summary from abstract and title and actual text"""
         try:
             summarized_text = ""
@@ -92,6 +109,10 @@ class simpleTransformerProcessor(BaseProcessor):
                 calculated_max = min(50, word_count//2)
                 calculated_min = min(word_count//4, 40)
 
+                if short:
+                    calculated_max = 20
+                    calculated_min = 10
+                
                 inputs = self.tokenizer.encode(
                     prompt,
                     return_tensors="pt",
@@ -136,29 +157,77 @@ class simpleTransformerProcessor(BaseProcessor):
     async def generateKeywords(self, article:Article, actualText:str)->List[str]:
         """Generate Keywords from abstract,title and actual text"""
         try:
+            #Language model based keyword extraction using KeyBERT
             keywords = self.kw_model.extract_keywords(actualText,keyphrase_ngram_range=(1, 1), stop_words='english',
-                              use_maxsum=True, nr_candidates=20, top_n=10)
-            return [k[0] for k in keywords]
+                              use_maxsum=True, nr_candidates=20, top_n=10, use_mmr=True, diversity=0.5)
+
+            keywords1 =  [k[0] for k in keywords]
+            #Statitsical based keyword extraction using Yake
+            kw_extractor = yake.KeywordExtractor(
+                lan="en",           # Language
+                n=3,                # Max ngram size (e.g., 1 to 3 words per phrase)
+                dedupLim=0.9,       # Deduplication threshold
+                top=5               # Number of keywords to return
+            )
+
+            # Extract Keywords
+            keywords2 = []#kw_extractor.extract_keywords(actualText)
+            #use sets to deduplicate and combine keywords from both methods
+            return {k for k in keywords1 + keywords2}
+
         except Exception as e:
             logging.error(f"Error in keyword generation of {article.arxiv_id} {e}")
             raise simpleTransformerProcessorError("Keyword generation Failed")
-        
+
+    async def generateChunks(self, article:Article, actualText:str)->List[str]:
+        """Generate Chunks from abstract,title and actual text"""
+        try:
+            markdown_paper_splitter = MarkdownTextSplitter(
+                chunk_size=2048,       # Keeps text safely under BGE's 512-token ceiling
+                chunk_overlap=64,
+                length_function=len #TODO:tiktoken token count can be used for bge
+            )
+            chunks = markdown_paper_splitter.split_text(actualText)
+            final_chunks = []
+            #TODO: summarize each chunk and store the summary along with the chunk for better retrieval
+            for chunk in chunks:
+                logging.info(f"Chunk size: {len(chunk)} words {len(chunk.split())}")
+                try:
+                    summary = await self.generateSummary(article,chunk,short=True)
+                    logging.info(f"Chunk summary: {summary}")
+                    final_chunks.append(f"Part of paper discussing {article.title}. \n {summary}  \n\n {chunk}")
+                except Exception as e:
+                    logging.error(f"Error in processing chunk of {article.arxiv_id}: {e}")
+                    final_chunks.append(chunk)
+
+            return final_chunks
+
+        except Exception as e:
+            logging.error(f"Error in chunk generation of {article.arxiv_id}: {e}")
+            raise simpleTransformerProcessorError("Chunk generation Failed")
+
+    async def createEmbeddings(self, chunks:List[str])->List[List[float]]:
+        """Generate Embeddings from chunks"""
+        try:
+            embeddings = await asyncio.to_thread(self.encoding_model.encode, chunks, show_progress_bar=True)
+            return embeddings
+        except Exception as e:
+            logging.error(f"Error in embedding generation: {e}")
+            raise simpleTransformerProcessorError("Embedding generation Failed")
 
     async def evaluate_text(self, article:Article, score:float, fullText:str)->Enriched:
         """Generate a summary, keep the summary vector, generate keywords from fullText"""
         try:
             logging.info("Processing full text")
             keywords = await self.generateKeywords(article=article,actualText=fullText)
-            summary = await self.generateSummary(article=article,actualText=fullText)
-            if summary is not None:
-                vector = await asyncio.to_thread(self.encoding_model.encode, summary)
-            else:
-                vector = await asyncio.to_thread(self.encoding_model.encode, article.abstract)
 
+
+            summary = await self.generateSummary(article=article,actualText=fullText)
+            chunks = await self.generateChunks(article=article,actualText=fullText)
             enriched = Enriched(**article.model_dump(),score=score)
             enriched.summary = summary
             enriched.keywords = keywords
-            enriched.embedding = vector
+            enriched.chunks = chunks
             
             return enriched
         

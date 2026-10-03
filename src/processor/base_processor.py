@@ -52,12 +52,12 @@ def manual_model_load(model_path):
     return model
 
 
-class ProcessorUtils:
+class ProcessorUtils():
     def __init__(self):
         self.md = MarkItDown()   
         try:
             self.model = SentenceTransformer(
-                settings.embedding_path, 
+                os.path.abspath(settings.embedding_path),
                 device='cpu',
                 local_files_only=True)  # e.g., a SentenceTransformer instance
         except Exception as e:

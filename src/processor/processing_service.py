@@ -1,4 +1,4 @@
-from shared import Article,settings,fetch_next_batch,get_session,updateArticle,saveRelevanceScore,saveKeywords,ArticleState
+from shared import Article,settings,fetch_next_batch,get_session,updateArticle,saveRelevanceScore,saveKeywords,ArticleState, saveEmbeddings
 import httpx
 from processor import ProcessorFactory,ProcessorUtils
 from typing import List
@@ -6,11 +6,11 @@ import logging
 
 
 keyword_list = [
-    "Reconstruction",
+    "3D Reconstruction",
+    "Virtual Try-On",
     "Photogrammetry",
     "Human Parametric Model",
     "multi-view synchronization",
-    "Virtual Try On",
     "3DGS"
     
 ]
@@ -60,12 +60,12 @@ class ProcessingService:
         
         # 4. ENRICHMENT & VECTORIZATION
         enriched_data = await self.processor.evaluate_text(article,result.score, full_text)
-        
+        embeddings = await self.processor.createEmbeddings([enriched_data.summary] + enriched_data.chunks)
         
         # 5. FINAL STORAGE
         await saveKeywords(session,enriched_data.keywords,article)
         await saveRelevanceScore(session,result)
-        # await updateEmbeddings(enriched_data.embedding)
+        await saveEmbeddings(session,enriched_data, embeddings)
 
         article.summary = enriched_data.summary
         article.processed = True
