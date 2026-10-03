@@ -85,11 +85,12 @@ async def test_processing_service_relevant(valid_pdf_data,mock_session,mock_get_
     mock_update = AsyncMock(return_value=None)
     mock_kw_save = AsyncMock(return_value=None)
     mock_score_save = AsyncMock(return_value=None)
-
+    mock_embedding_save = AsyncMock(return_value=None)
     #mock article dba updatearticle function
     with patch("processor.processing_service.updateArticle", mock_update),\
         patch("processor.processing_service.saveKeywords",mock_kw_save), \
-        patch("processor.processing_service.saveRelevanceScore", mock_score_save):
+        patch("processor.processing_service.saveRelevanceScore", mock_score_save), \
+        patch("processor.processing_service.saveEmbeddings", mock_embedding_save):
         # 1. Setup the Mock Server using respx
         with respx.mock(base_url="https://arxiv.org") as respx_mock:
 
@@ -115,4 +116,7 @@ async def test_processing_service_relevant(valid_pdf_data,mock_session,mock_get_
                 art.status = 'indexed'
                 #assert mockupdate called with argument processed true, status indexed
                 mock_update.assert_awaited_once_with(mock_session,art)
+                mock_kw_save.assert_called()
+                mock_score_save.assert_called()
+                mock_embedding_save.assert_called()   
                 

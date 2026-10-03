@@ -168,3 +168,27 @@ async def test_save_Relevancescore_success(db_session):
     assert isinstance(scores[0],float)
     assert scores[0] == score.score
         
+
+@pytest.mark.asyncio
+async def test_save_Keywords_success(db_session):
+    """Score is added, committed and refreshed"""
+    article = Article(
+        arxiv_id="2603.30045",
+        title="A Vision Transformer",
+        abstract="We propose a novel approach to object detection.",
+        fetched_at=datetime.now(timezone.utc),
+    )
+
+
+    result = await article_dba.store_results(db_session, article)
+    keywords = ["Reconstruction", "Transformer", "ViT"]
+
+    await article_dba.saveKeywords(db_session, keywords, article)
+    #check if keywords is stored
+    statement = select(Keyword.word).where(Keyword.article_id.__eq__(article.id))
+    result = await db_session.exec(statement)
+    words = result.all()
+    print(words)
+    assert len(words) == 3
+    assert isinstance(words[0],str)
+    assert words == keywords
