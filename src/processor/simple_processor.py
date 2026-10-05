@@ -220,7 +220,7 @@ class simpleTransformerProcessor(BaseProcessor):
         try:
             logging.info("Processing full text")
             keywords = await self.generateKeywords(article=article,actualText=fullText)
-
+            keywords = list(keywords)
 
             summary = await self.generateSummary(article=article,actualText=fullText)
             chunks = await self.generateChunks(article=article,actualText=fullText)

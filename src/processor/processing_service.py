@@ -19,8 +19,8 @@ class ProcessingService:
     """
     Class that orchestrates simple abstract processing, deep text processing, vector storage
     """
-    def __init__(self):
-        self.util = ProcessorUtils()
+    def __init__(self,rate_limiter=None):
+        self.util = ProcessorUtils(rate_limiter = rate_limiter)
         if settings.processor_mode == "llama":
             self.processor = ProcessorFactory.get_processor(settings.processor_mode,keywords=keyword_list,encoding_model=self.util,api_key=settings.llm_api_key,provider_url=settings.llm_host)        
         else:
@@ -69,5 +69,6 @@ class ProcessingService:
 
         article.summary = enriched_data.summary
         article.processed = True
+        article.keywords = enriched_data.keywords
         article.status = ArticleState.INDEXED
         await updateArticle(session,article)

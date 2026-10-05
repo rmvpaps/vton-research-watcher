@@ -143,9 +143,12 @@ async def process_auth(session,username,password)->Token:
 
 async def process_refresh(session,refresToken)->Token:
     logging.info(f"token_for_access_token")
+    print(" refresh token")
+
     try:
         payload = jwt.decode(refresToken, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "refresh":
+            
             raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid token type"
@@ -168,7 +171,8 @@ async def process_refresh(session,refresToken)->Token:
             
         return Token(access_token=access_token,refresh_token=refresh_token,  token_type="bearer")
             
-    except jwt.JWTError:
+    except jwt.PyJWTError:
+        print("Invalid refresh token")
         raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid refresh token"
@@ -180,6 +184,10 @@ async def process_refresh(session,refresToken)->Token:
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 @router.post("/token")
 async def login_for_access_token_json(
@@ -196,13 +204,13 @@ async def login_for_access_token_json(
 @router.post("/refresh-token")
 async def refresh_token_for_access_token_json(
     session: SessionDep,
-    request: Request, response: Response
+    request: Request, response: Response,
+    credentials: RefreshRequest
 ) -> Token:
-    refresh_token = request.cookies.get("refresh_token")
-    if not refresh_token:
+    if not credentials.refresh_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing")
 
-    MyToken =  await process_refresh(session, refresToken=refresh_token)
+    MyToken =  await process_refresh(session, refresToken=credentials.refresh_token)
     
     return MyToken
 

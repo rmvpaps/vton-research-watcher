@@ -50,6 +50,10 @@ class Enriched(SQLModel,table=False):
     summary: Optional[str] = None
     chunks: Optional[List[str]] = []
     scraped_at: Optional[datetime] = None
+    authors: Optional[List[str]]= []
+    published_at: Optional[datetime] = None
+    source: Optional[str] = None
+        
     processed: bool 
     score: Optional[float] = 0.0
     status: ArticleState = Field(sa_column=String,default=ArticleState.UNKNOWN)

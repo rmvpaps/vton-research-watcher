@@ -1,5 +1,5 @@
 import pytest
-from scraper.ratelimiter import WindowRateLimiter,DelayRateLimiter
+from shared.ratelimiter import WindowRateLimiter,DelayRateLimiter
 from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio

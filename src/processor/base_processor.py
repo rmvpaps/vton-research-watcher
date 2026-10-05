@@ -53,8 +53,9 @@ def manual_model_load(model_path):
 
 
 class ProcessorUtils():
-    def __init__(self):
-        self.md = MarkItDown()   
+    def __init__(self, rate_limiter=None):
+        self.md = MarkItDown()
+        self.rate_limiter = rate_limiter
         try:
             self.model = SentenceTransformer(
                 os.path.abspath(settings.embedding_path),
@@ -75,7 +76,9 @@ class ProcessorUtils():
         """
         Download the full arxiv paper
         """
-        
+        if self.rate_limiter:
+            print("Rate limit check")
+            await self.rate_limiter.is_allowed()
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
                 raw = await client.get(f"{settings.ARXIV_PDF_URL}{id}")
