@@ -1,8 +1,49 @@
 # ArXiv paper filtering system
 
-This application is built to help brush up on Python concepts and also help me keep an eye on the research papers coming out in my area of interest, i.e. 3D Virtual Try On. I intend to build it to update my python skills in async, pydantic and SQLmodel, fastapi etc.
+This application is built to help researchers keep an eye on the research papers coming out in their area of interest, e.g. 3D Virtual Try On. Python based microservices handle scraping, processing and API calls. 
+User provides domain of interest,broad category/url to search abstracts from, keywords and topics of interest.
+Based on this, relevant abstracts are identified, scored and indexed.
+The high scoring ones are displayed on user dashboard with keywords and scores. They are also indexed in vector store. User can view paper details, ask assistant to help understand the paper(LLM behind the scenes) 
+User can also search based on keywords, semantic search, and LLM powered natural language searching.
+User can also ask assistant to help with questions across multiple papers in the literature review assistant mode.
 
 ![Basic Architecture](images/arxiv_relevance_tracker_architecture.svg)
+
+
+## Project under development
+
+### Tasks
+
++ [ ] Scraping abstracts
+    - [X] arXiv
+    - [ ] others
+
++ [ ] Processing 1 -scoring
+    - [X] simple - wordmatch + cosine similarity
+    - [X] hosted LLM - scoring - grok (llama 3.1)
+
++ [ ] Processing 2 -keywords/summarize/chunk and store
+    - [X ] pull full pdf and convert to markdown
+    - [X] simple - keyword(keyBERT, BGE) + summary(t5) + chunking(markdown splitter)
+    - [X] hosted LLM - keyword+summary  grok (llama 3.1)
+    - [ ] advanced chunking?
+
++ [ ] API
+    - [X] Login
+    - [X] Listing
+    - [X] Individual Article
+    - [X] Individial article Assistant
+    - [ ] Search
+        - [X] word search
+        - [ ] sematic search
+        - [ ] normal language
+    - [ ] Assistant
+    - [ ] Settings
+
+
++ [ ] To be updated....
+
+
 
 
 ![System](images/archi_gemini.png)
@@ -12,6 +53,9 @@ This application is built to help brush up on Python concepts and also help me k
 - Processing service reads from queue - Each article abstract is scraped, keywords tracked, compared with list of given keywords based on direct occurence or similarity and a relevance score is given. Processed article is stored in DB. 
 - An API is made available to fetch the most relevant 10 article links in arxiv with the details for the week. Also to give a manual score
 - A React web app will fetch the data and show it on the web page based on user preferences
+
+
+
 
 
 ## Deployment Architecture
@@ -27,8 +71,6 @@ The project is deployed in AWS within free tier constraints
 ![Basic Architecture](images/AWS_architecture.png)
 
 The Terraform HCL code for the application is in https://github.com/rmvpaps/research-watcher-infra
-
-The Minimal React application to consume the APIs - https://github.com/rmvpaps/research-watcher-webapp
 
 A PoC using AWS Bedrock with openapi spec was given to fetch relevant articles and provide a summary which is not included in the architecture. 
 
@@ -107,4 +149,4 @@ fastapi dev .\src\api\main.py
 ```   
 ## REACT WEB APP
 
-- TODO: App that consumes the API
+React application to consume the APIs Available here- https://github.com/rmvpaps/research-watcher-webapp
