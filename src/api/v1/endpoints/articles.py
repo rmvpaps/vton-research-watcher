@@ -1,10 +1,10 @@
 from typing import Annotated
-from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message
+from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message,Embedding
 from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter,Path
 from sqlmodel import Field, Session, SQLModel, create_engine, select,desc,func
 from typing import List,Optional
 from api import get_current_user
-from api.utils import answer_question_from_context_gemini
+from api.utils import answer_question_from_context_gemini,generate_query
 from shared.usermodels import User
 from typing import Annotated
 router = APIRouter()
@@ -28,9 +28,9 @@ async def read_articles(
         RelevanceScore, Article.id == RelevanceScore.article_id,isouter=True
     )
     if sort_by_score:
-        query = query.order_by(desc(RelevanceScore.score))
+        query = query.order_by(desc(RelevanceScore.score),desc(Article.fetched_at))
     else:
-        query = query.order_by(desc(Article.id))
+        query = query.order_by(desc(Article.fetched_at))
 
     # 2. Apply Optional Metadata Filters
     if processed is not None:
@@ -94,6 +94,9 @@ async def get_answer_from_article(
     response_data = results.one()
 
     context = f"{response_data.title}\n\n{response_data.abstract}\n\n{response_data.summary}"
+
+    context += await generate_query(session, id, messages)
+
 
     llm_response = await answer_question_from_context_gemini(context,messages)
 

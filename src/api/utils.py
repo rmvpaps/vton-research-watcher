@@ -1,8 +1,11 @@
 CACHED_SECRET = None
 from shared.usermodels import UserInDB
-from shared import settings,Message
+from shared import settings,Message,Embedding
+from processor.processing_service import ProcessorUtils
 from typing import List
 import logging
+from sqlmodel import select,cast
+from pgvector.sqlalchemy import Vector
 
 from shared import get_session
 def get_secret_runtime():
@@ -110,3 +113,29 @@ async def answer_question_from_context_gemini(context:str, messagehistory:List[M
         logging.error(f"Error retrieving LLM response: {e}")
         raise Exception("Error occured - could not get a response from LLM.")
 
+async def generate_query(session, id: int, messagehistory:List[Message]):
+    """
+    Fetch the context for a given message history.
+    This function retrieves the relevant context based on the provided message history.
+    """
+    try:
+        user_messages = " ".join([msg.content for msg in messagehistory[:5] if msg.role == "user"])
+        putil = ProcessorUtils()
+        query_embedding = putil.encode(user_messages)
+        print(query_embedding)
+        ##VECTOR SEARCH
+        query2 = select(Embedding).where(Embedding.article_id == id)\
+                .order_by(Embedding.vector.l2_distance(cast(query_embedding, Vector)))\
+                .limit(2)
+        result = await session.exec(query2)
+        relevant_docs = result.all()
+
+        context = "\n\n Retrieved portions of the paper:\n\n"
+        for doc in relevant_docs:
+            print(f"Found context match: {doc.chunk_text}")
+            context += f"{doc.chunk_text}\n\n"
+        return context
+    except Exception as e:
+        logging.error(f"Error generating query context: {e}")
+        raise Exception("Error occurred while generating query context.")
+    return ""
