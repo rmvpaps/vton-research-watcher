@@ -115,12 +115,12 @@ async def get_system_stats(
     start_of_month = datetime.datetime(now.year, now.month, 1)
 
     # 1. Articles scraped today
-    stmt_d = select(func.count(Article.id)).where(Article.scraped_at >= start_of_day)
+    stmt_d = select(func.count(Article.id)).where(Article.fetched_at >= start_of_day)
     res_d = await session.exec(stmt_d)
     day_ct = res_d.one()
 
     # 2. Articles scraped this month
-    stmt_m = select(func.count(Article.id)).where(Article.scraped_at >= start_of_month)
+    stmt_m = select(func.count(Article.id)).where(Article.fetched_at >= start_of_month)
     res_m = await session.exec(stmt_m)
     month_ct = res_m.one()
 
