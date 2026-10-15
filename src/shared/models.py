@@ -99,6 +99,27 @@ class Stats(SQLModel, table=False):
 
 
 class Message(SQLModel, table=False):
-    role: str # "user" or "assistant"
-    content: str
+    role: str =Field(default=None, primary_key=True)
+    content: str =Field(default=None, primary_key=True)
+
+
+class ArticleChat(SQLModel, table=True):
+    last_activity: datetime = Field(
+        sa_column=sa.Column(sa.DateTime(timezone=True), nullable=False),
+        default_factory=lambda:datetime.now(timezone.utc))
+    id: Optional[int] = Field(default=None, primary_key=True)
+    message: list["ChatItem"] = Relationship(back_populates="articleChat",cascade_delete=True)
+    article_id: int = Field(foreign_key="article.id")
+
+class ChatItem(Message, table=True):
+    ts: datetime = Field(
+            sa_column=sa.Column(sa.DateTime(timezone=True), primary_key=True),
+            default_factory=lambda:datetime.now(timezone.utc))
+    chat_id: Optional[int] = Field(foreign_key="articlechat.id")
+    articleChat: ArticleChat = Relationship(back_populates="message")
+
+
+class RangeInt(SQLModel,table=False):
+    min: int
+    max: int
 

@@ -1,7 +1,8 @@
 from typing import Annotated
-from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message,Embedding
+from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message,Embedding,ArticleChat,ChatItem
 from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter,Path
 from sqlmodel import Field, Session, SQLModel, create_engine, select,desc,func
+from sqlalchemy.orm import selectinload
 from typing import List,Optional
 from api import get_current_user
 from api.utils import answer_question_from_context_gemini,generate_query
@@ -97,11 +98,59 @@ async def get_answer_from_article(
 
     context += await generate_query(session, id, messages)
 
-
-    llm_response = await answer_question_from_context_gemini(context,messages)
-
+    llm_response = Message(role="test",content="test answer")
+    #await answer_question_from_context_gemini(context,messages)
+    #store the chat messages in the database for future reference
+    try:                
+        query2 = select(ArticleChat).where(ArticleChat.article_id == id).options(selectinload(ArticleChat.message))
+        results = await session.exec(query2)
+        chat = results.first()
+        if chat is None:
+            chat = ArticleChat(article_id=id,message=[])
+            for m in messages:
+                chat.message.append(ChatItem(**m.model_dump()))
+        else:
+            chat.message.append(ChatItem(**messages[-1].model_dump()))
+        chat.message.append(ChatItem(role='assistant',content=llm_response.content))
+        # Save the chat messages to the database
+        session.add(chat)
+        await session.commit()
+    except Exception as e:
+        print("Error saving chat messages",e)
     return llm_response
 
+
+@router.get("/chat/{id}",response_model=List[Message])
+async def get_chat_history_for_article(
+    session: SessionDep,
+    id: int = Path(..., description="The ID of the article to retrieve chat history for")
+) -> List[Message]:
+    """
+    Retrieves the chat history for a given article
+    """
+    query = select(ArticleChat).where(ArticleChat.article_id == id).options(selectinload(ArticleChat.message))
+    results = await session.exec(query)
+    response_data = results.first()
+
+
+    return response_data.message if response_data else []
+
+@router.delete("/chat/{id}",response_model=bool)
+async def get_chat_history_for_article(
+    session: SessionDep,
+    id: int = Path(..., description="The ID of the article to delete chat history for")
+) -> bool:
+    """
+    Retrieves the chat history for a given article
+    """
+    query = select(ArticleChat).where(ArticleChat.article_id == id)
+    results = await session.exec(query)
+    response_data = results.first()
+    if response_data:
+        await session.delete(response_data)
+        await session.commit()
+
+    return True 
 
 @router.get("/stats",response_model=Stats)
 async def get_system_stats(
