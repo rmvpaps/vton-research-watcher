@@ -5,6 +5,7 @@ from typing import Optional,List
 from enum import Enum
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 class ArticleState(str, Enum):
@@ -66,7 +67,7 @@ class RelevanceScore(SQLModel, table=True):
     article_id: int = Field(foreign_key="article.id")
     score: float
     manual_score: Optional[float] = None
-    matched_keywords: Optional[str]  # JSON list
+    matched_keywords: Optional[str]  = Field(default=None, sa_type=JSONB) # JSON list
 
     fetched_at: datetime = Field(
         sa_column=sa.Column(sa.DateTime(timezone=True), nullable=False),

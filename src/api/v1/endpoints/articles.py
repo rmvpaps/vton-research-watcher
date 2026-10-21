@@ -1,5 +1,5 @@
 from typing import Annotated
-from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message,Embedding,ArticleChat,ChatItem
+from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message,Embedding,ArticleChat,ChatItem, RangeInt
 from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter,Path
 from sqlmodel import Field, Session, SQLModel, create_engine, select,desc,func
 from sqlalchemy.orm import selectinload
@@ -19,7 +19,8 @@ async def read_articles(
     session: SessionDep,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    processed: Optional[bool] = None,
+    score_range: Optional[RangeInt] = None,
+    mapped_keywords : Optional[List[str]]= None,
     state: Optional[ArticleState] = None,
     sort_by_score: bool = False,
     ids: Optional[List[int]] = Query(None) 
@@ -34,10 +35,13 @@ async def read_articles(
         query = query.order_by(desc(Article.fetched_at))
 
     # 2. Apply Optional Metadata Filters
-    if processed is not None:
-        query = query.where(Article.processed == processed)
+    if score_range is not None:
+        query = query.where(RelevanceScore.score >= score_range.min)
+        query = query.where(RelevanceScore.score <= score_range.max)
     if state is not None:
         query = query.where(Article.status == state)
+    if mapped_keywords is not None:
+        RelevanceScore.matched_keywords.has_any(mapped_keywords)
     if ids and len(ids)>0:
         query = query.where(Article.id.in_(ids))
     # 3. Pagination
@@ -61,6 +65,42 @@ async def read_articles(
                 Enriched(**article_obj.model_dump())
             )
     return response_data
+
+
+
+
+@router.get("/{id}",response_model=Enriched)
+async def read_article(
+    session: SessionDep,
+    current_user: Annotated[User, Depends(get_current_user)],    
+    id: int =  Path(..., description="The ID of the article") 
+) -> Enriched:
+    """Returns an article given id"""
+    query = select(Article, RelevanceScore).join(
+        RelevanceScore, Article.id == RelevanceScore.article_id,isouter=True
+    )
+    query = query.where(Article.id == id)
+    
+    # 4. Execute Query
+    results = await session.exec(query)
+
+    #Transform the results -  since we have cap of 100, we can loop without performance hit
+    response_data = []
+    for row in results.all():
+        article_obj, score_obj = row
+
+        if score_obj:    
+            # Merge fields into our flat Pydantic/SQLModel response structure
+            response_data.append(
+                Enriched(**article_obj.model_dump(),score=score_obj.score)
+            )
+        else:
+            response_data.append(
+                Enriched(**article_obj.model_dump())
+            )
+    if len(response_data)>0:
+        return response_data[0]
+
 
 
 
