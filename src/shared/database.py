@@ -10,7 +10,7 @@ import asyncpg
 
 
 
-async def create_database():
+async def create_database(db_name:str=settings.POSTGRES_DB):
     # Connect to the default 'postgres' database
     conn = await asyncpg.connect(user=settings.db_user, password=settings.POSTGRES_PASSWORD, 
                                  host=settings.db_host, database='postgres')
@@ -18,8 +18,8 @@ async def create_database():
     try:
         # Use DROP DATABASE with FORCE to terminate other connections (Postgres 13+)
         # If using an older version, remove 'WITH (FORCE)'
-        await conn.execute(f'CREATE DATABASE "{settings.POSTGRES_DB}"')
-        print(f"Database '{settings.POSTGRES_DB}' created successfully.")
+        await conn.execute(f'CREATE DATABASE "{db_name}"')
+        print(f"Database '{db_name}' created successfully.")
 
     except Exception as e:
         print(f"Error creating database: {e}")
@@ -31,19 +31,19 @@ async def create_database():
         user=settings.db_user, 
         password=settings.POSTGRES_PASSWORD, 
         host=settings.db_host, 
-        database=settings.POSTGRES_DB  # <-- Connect here!
+        database=db_name  # <-- Connect here!
     )
     
     try:
         # Create the 'vector' extension inside the actual target database
         await new_db_conn.execute('CREATE EXTENSION IF NOT EXISTS vector')
-        print(f"Extension 'vector' enabled successfully in '{settings.POSTGRES_DB}'.")
+        print(f"Extension 'vector' enabled successfully in '{db_name}'.")
     except Exception as e:
         print(f"Error creating 'vector' extension: {e}")
     finally:
         await new_db_conn.close()
 
-async def delete_database():
+async def delete_database(db_name=settings.POSTGRES_DB):
     # Connect to the default 'postgres' database
     conn = await asyncpg.connect(user=settings.db_user, password=settings.POSTGRES_PASSWORD, 
                                  host=settings.db_host, database='postgres')
@@ -51,8 +51,8 @@ async def delete_database():
     try:
         # Use DROP DATABASE with FORCE to terminate other connections (Postgres 13+)
         # If using an older version, remove 'WITH (FORCE)'
-        await conn.execute(f'DROP DATABASE "{settings.POSTGRES_DB}" WITH (FORCE)')
-        print(f"Database '{settings.POSTGRES_DB}' deleted successfully.")
+        await conn.execute(f'DROP DATABASE "{db_name}" WITH (FORCE)')
+        print(f"Database '{db_name}' deleted successfully.")
     except Exception as e:
         print(f"Error deleting database: {e}")
     finally:

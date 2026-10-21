@@ -54,22 +54,69 @@ from sqlmodel import SQLModel
 from sqlalchemy.orm import sessionmaker
 import pytest_asyncio
 
-@pytest_asyncio.fixture
-async def db_session():
-    # 1. Create a fresh in-memory DB for every test
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+# conftest.py
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
+
+# Import your configuration/methods from database.py
+from shared.database import create_database, delete_database, settings
+from shared.models import SQLModel  # Crucial: Ensure SQLModel registers your tables
+
+TEST_DB_NAME = "test_db"
+# Swap out the DB name in your standard connection string format
+TEST_DATABASE_URL = f"postgresql+asyncpg://{settings.db_user}:{settings.POSTGRES_PASSWORD}@{settings.db_host}/{TEST_DB_NAME}"
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def manage_test_db():
+    """Runs once for the for each test instead of entire test session. Safely builds and drops test_db."""
+    # 1. Create the database and run extensions using your file's logic
+    await create_database(db_name=TEST_DB_NAME)
     
-    # 2. Create tables
-    async with engine.begin() as conn:
+    # 2. Build the engine targeting the test db and create tables
+    test_engine = create_async_engine(TEST_DATABASE_URL)
+    async with test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+        
+    yield
     
-    # 3. Yield a session
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with async_session() as session:
+    # 3. Clean up when all tests finish
+    await test_engine.dispose()
+    await delete_database(db_name=TEST_DB_NAME)
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session():
+    """Provides an isolated transaction session for an individual test."""
+    test_engine = create_async_engine(TEST_DATABASE_URL)
+
+    asyncSession = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+    
+    async with asyncSession() as session:
         yield session
+        
+            
+
+
+# @pytest_asyncio.fixture
+# async def db_session():
+#     # 1. Create a fresh in-memory DB for every test
+#     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     
-    # 4. Clean up
-    await engine.dispose()
+#     # 2. Create tables
+#     async with engine.begin() as conn:
+#         await conn.run_sync(SQLModel.metadata.create_all)
+    
+#     # 3. Yield a session
+#     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+#     async with async_session() as session:
+#         yield session
+    
+#     # 4. Clean up
+#     await engine.dispose()
+
+
 
 
 # tests/conftest.py
