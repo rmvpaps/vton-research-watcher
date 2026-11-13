@@ -1,6 +1,6 @@
 from typing import Annotated
-from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message,Embedding,ArticleChat,ChatItem, RangeInt
-from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter,Path
+from shared import get_session_dep,Article,settings,RelevanceScore,Enriched,ArticleState,Keyword,Stats,Message,Embedding,ArticleChat,ChatItem, Rangefloat
+from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter,Path,status
 from sqlmodel import Field, Session, SQLModel, create_engine, select,desc,func
 from sqlalchemy.orm import selectinload
 from typing import List,Optional
@@ -19,13 +19,14 @@ async def read_articles(
     session: SessionDep,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    score_range: Optional[RangeInt] = None,
+    score_range: Optional[Rangefloat] = Depends(),
     mapped_keywords : Optional[List[str]]= None,
     state: Optional[ArticleState] = None,
     sort_by_score: bool = False,
     ids: Optional[List[int]] = Query(None) 
 ) -> List[Enriched]:
     """Returns all articles in the system"""
+    print(score_range)
     query = select(Article, RelevanceScore).join(
         RelevanceScore, Article.id == RelevanceScore.article_id,isouter=True
     )
@@ -64,12 +65,13 @@ async def read_articles(
             response_data.append(
                 Enriched(**article_obj.model_dump())
             )
+
     return response_data
 
 
 
 
-@router.get("/{id}",response_model=Enriched)
+@router.get("/{id}")
 async def read_article(
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_user)],    
@@ -100,6 +102,11 @@ async def read_article(
             )
     if len(response_data)>0:
         return response_data[0]
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="article not found"
+    )
 
 
 
