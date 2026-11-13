@@ -14,7 +14,7 @@ import logging
 import time
 import aiofiles
 from shared import ArticleBase,get_session,settings
-from typing import List
+from typing import List,Tuple
 from scraper.base_scraper import BaseScraper
 import re
 import datetime 
@@ -112,7 +112,7 @@ class HtmlScraper(BaseScraper):
 
     async def fetchPaperDetails(self,client:httpx.AsyncClient, id:str)->ArticleBase:
         async with self.semaphore:
-            print("Fetch individual abstract")
+            logging.info("Fetch individual abstract")
             if self.rate_limiter:
                 print("Rate limit check")
                 await self.rate_limiter.is_allowed()
@@ -186,6 +186,7 @@ class HtmlScraper(BaseScraper):
                 print("Rate limit check")
                 await self.rate_limiter.is_allowed()
             print("Fetch new page for listing from",skip)
+            logging.info("Fetch listing page")
             IDlist = None
             try:
 
@@ -204,12 +205,12 @@ class HtmlScraper(BaseScraper):
 
 
 
-    async def fetch_ids(self, client:httpx.AsyncClient,limit: int) -> List[str]:
+    async def fetch_ids(self, client:httpx.AsyncClient,limit: int,skip=0) -> Tuple[List[str],int]:
         IDlist = None
-  
+        total = 0
 
 
-        IDlist,total = await self.fetch_id_list_paging(client)
+        IDlist,total = await self.fetch_id_list_paging(client,skip=skip)
         logging.info(f"Total of {total} articles to fetch")
         if total > len(IDlist) and limit>len(IDlist):
             print("Need to fetch more")
@@ -238,7 +239,7 @@ class HtmlScraper(BaseScraper):
                 IDlist.extend(results)
             if len(IDlist) > limit:
                 IDlist = IDlist[0:limit]
-        return IDlist
+        return IDlist,total
 
 
 

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List,Tuple
 from shared.models import ArticleBase # Your Pydantic model
 import httpx
 
@@ -7,7 +7,7 @@ import httpx
 class BaseScraper(ABC):
 
     @abstractmethod
-    async def fetch_ids(self, client:httpx.AsyncClient, limit: int) -> List[str]:
+    async def fetch_ids(self, client:httpx.AsyncClient, limit: int,skip:int=0) -> Tuple[List[str],int]:
         """Fetch a list of paper IDs from the source."""
         pass
 
