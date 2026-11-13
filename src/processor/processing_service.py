@@ -3,7 +3,9 @@ import httpx
 from processor import ProcessorFactory,ProcessorUtils
 from typing import List
 import logging
+from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
 
 keyword_list = [
     "3D Reconstruction",
@@ -27,14 +29,17 @@ class ProcessingService:
             self.processor = ProcessorFactory.get_processor(settings.processor_mode,keywords=keyword_list,encoding_model=self.util)
         
 
-    async def fetch_next_batch_and_process(self)->List[Article]:
+    async def fetch_next_batch_and_process(self,progress_callback=None)->List[Article]:
         """
         Function to fetch unprocessed articles from DB
         """
         async with get_session() as session:
             articles = await fetch_next_batch(session,settings.PROCESS_BATCH_SIZE)
+            if progress_callback:
+                articles = progress_callback(articles,desc="Processing article abstracts")
 
             for article in articles:
+                logger.info("processing article")
                 await self.process_article(session,article)
 
 
