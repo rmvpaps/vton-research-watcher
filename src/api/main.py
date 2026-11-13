@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, status
+from contextlib import asynccontextmanager
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from api.v1.router import v1_router
@@ -34,9 +35,9 @@ app.add_middleware(
     allow_headers=["*"],  # Allows Authorization, Content-Type, etc.
 )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
 
-@app.on_event("startup")
-async def on_startup():
     print(f"Registered tables: {SQLModel.metadata.tables.keys()}")
     #Get secret from secret manager
     if settings.STAGE_NAME != "" and settings.POSTGRES_PASSWORD == "default123":
@@ -52,6 +53,8 @@ async def on_startup():
             await create_default_user()
         except Exception as e:
             logging.error(f"Default user creation failed {e}")
+
+    yield
 
 
 app.include_router(v1_router)

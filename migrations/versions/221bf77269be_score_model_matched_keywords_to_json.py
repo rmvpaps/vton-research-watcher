@@ -26,7 +26,8 @@ def upgrade() -> None:
     op.create_foreign_key(None, 'chatitem', 'articlechat', ['chat_id'], ['id'])
     op.alter_column('relevancescore', 'matched_keywords',
                existing_type=sa.VARCHAR(),
-               type_=postgresql.JSONB(astext_type=sa.Text()),
+               type_=postgresql.JSONB,
+               postgresql_using='matched_keywords::jsonb',
                existing_nullable=True)
     # ### end Alembic commands ###
 

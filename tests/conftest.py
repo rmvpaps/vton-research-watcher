@@ -69,7 +69,7 @@ TEST_DB_NAME = "test_db"
 # Swap out the DB name in your standard connection string format
 TEST_DATABASE_URL = f"postgresql+asyncpg://{settings.db_user}:{settings.POSTGRES_PASSWORD}@{settings.db_host}/{TEST_DB_NAME}"
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
+@pytest_asyncio.fixture(scope="session", autouse=True)
 async def manage_test_db():
     """Runs once for the for each test instead of entire test session. Safely builds and drops test_db."""
     # 1. Create the database and run extensions using your file's logic
@@ -90,13 +90,15 @@ async def manage_test_db():
 async def db_session():
     """Provides an isolated transaction session for an individual test."""
     test_engine = create_async_engine(TEST_DATABASE_URL)
-
-    asyncSession = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+    async with test_engine.connect() as connection:
+        async with connection.begin() as transaction:
+            asyncSession = sessionmaker(bind=connection, class_=AsyncSession, expire_on_commit=False)
     
-    async with asyncSession() as session:
-        yield session
-        
-            
+            async with asyncSession() as session:
+                yield session
+                
+            await transaction.rollback()
+    await test_engine.dispose()
 
 
 # @pytest_asyncio.fixture

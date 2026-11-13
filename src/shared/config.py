@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     db_type: Optional[str] = "sqlite"
     POSTGRES_PASSWORD: str = "default123"
     POSTGRES_DB: str = "vton_research"
+    POSTGRES_DEFAULT_DB: str = "postgres"
+    POSTGRES_PORT: int= 5432
     db_protocol: str = "postgresql+asyncpg"
     db_user:str = "postgres"
     db_host:str = "localhost"
@@ -28,6 +30,7 @@ class Settings(BaseSettings):
     embedding_path:str = "/app/models/bge-small"
     keybert_path:str = "/app/models/allMiniLM"
     PROCESS_BATCH_SIZE:int = 5
+    SCRAPE_BATCH_SIZE:int = 10
     STAGE_NAME:str = ""
     SECRET_KEY:str="906b5f658f12150a14cc8cf4287489f9eed95df70dfc906159d825b662d6a668"
     FRONTEND_ORIGIN:str="http://localhost:5173"
@@ -40,10 +43,10 @@ class Settings(BaseSettings):
         ssl_string = ""
         if self.db_sslstring and self.db_sslstring!="none":
             ssl_string = self.db_sslstring + "=require"
-        return f"{self.db_protocol}://{self.db_user}:{self.POSTGRES_PASSWORD}@{self.db_host}/{self.POSTGRES_DB}?{ssl_string}"
+        return f"{self.db_protocol}://{self.db_user}:{self.POSTGRES_PASSWORD}@{self.db_host}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}?{ssl_string}"
 
     class Config:
         env_file = ".env"
 
 settings = Settings()
-print(settings.database_url)
+#print(settings.database_url)

@@ -120,7 +120,7 @@ class ChatItem(Message, table=True):
     articleChat: ArticleChat = Relationship(back_populates="message")
 
 
-class RangeInt(SQLModel,table=False):
-    min: int
-    max: int
+class Rangefloat(SQLModel,table=False):
+    min: float
+    max: float
 

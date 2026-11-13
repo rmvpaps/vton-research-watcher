@@ -13,7 +13,7 @@ import asyncpg
 async def create_database(db_name:str=settings.POSTGRES_DB):
     # Connect to the default 'postgres' database
     conn = await asyncpg.connect(user=settings.db_user, password=settings.POSTGRES_PASSWORD, 
-                                 host=settings.db_host, database='postgres')
+                                 host=settings.db_host, database=settings.POSTGRES_DEFAULT_DB, port=settings.POSTGRES_PORT)
     
     try:
         # Use DROP DATABASE with FORCE to terminate other connections (Postgres 13+)
@@ -31,6 +31,7 @@ async def create_database(db_name:str=settings.POSTGRES_DB):
         user=settings.db_user, 
         password=settings.POSTGRES_PASSWORD, 
         host=settings.db_host, 
+        port=settings.POSTGRES_PORT,
         database=db_name  # <-- Connect here!
     )
     
