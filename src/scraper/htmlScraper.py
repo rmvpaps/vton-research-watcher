@@ -21,6 +21,8 @@ import datetime
 CONCURRENCY_LIMIT = settings.scrape_concurrency
 ARXIV_ABS_URL = "https://arxiv.org/abs/"
 
+logger = logging.getLogger(__name__)
+
 class HtmlStructureException(ValueError):
     pass
 
@@ -53,7 +55,7 @@ class HtmlScraper(BaseScraper):
 
                 # Iterate through dt tags
                 for dt_tag in dt_tags:
-                    logging.debug(dt_tag)
+                    logger.debug(dt_tag)
                     try:
                 
                         # Find the a tag within the span tag
@@ -70,22 +72,22 @@ class HtmlScraper(BaseScraper):
                             # Append the ID to the list
                             extracted_ids.append(id_value)
                     except Exception as e:
-                        logging.error(f"Error in extracting Id from dt_tag {e}")
+                        logger.error(f"Error in extracting Id from dt_tag {e}")
             try:
                 pg_tag = soup.find('div',attrs={'class':'paging'})
                 pg_info_str = pg_tag.find(string=True,recursive=False)
                 digits = re.findall(r'\d+', pg_info_str)
                 total_pages = int("".join(digits))
             except Exception as e:
-                logging.error(f"Error in finding total items in the week {e}")
+                logger.error(f"Error in finding total items in the week {e}")
                 #raise HtmlStructureException("Unexpected HTML format. Total could not be extracted")
 
         except Exception as e:
-            logging.error(f"Error in extracting ids - tag structure {e}")
+            logger.error(f"Error in extracting ids - tag structure {e}")
             raise HtmlStructureException("Unexpected HTML format.IDs could not be extracted")
         
         if len(extracted_ids)== 0:
-            logging.error(f"Error in extracting ids - tag structure")
+            logger.error(f"Error in extracting ids - tag structure")
             raise HtmlStructureException("Unexpected HTML format.IDs could not be extracted")
 
         return extracted_ids,total_pages
@@ -94,7 +96,7 @@ class HtmlScraper(BaseScraper):
         """
         Implementation of the batch fetch using TaskGroup.
         """
-        logging.info(f"Starting batch fetch for {len(id_list)} IDs")
+        logger.info(f"Starting batch fetch for {len(id_list)} IDs")
         tasks = []
         
         try:
@@ -104,7 +106,7 @@ class HtmlScraper(BaseScraper):
                     task = tg.create_task(self.fetchPaperDetails(client, article_id))
                     tasks.append(task)
         except ExceptionGroup as eg:
-            logging.error(f"Batch processing encountered errors: {eg}")
+            logger.error(f"Batch processing encountered errors: {eg}")
 
         # Collect results from tasks that succeeded
         results = [t.result() for t in tasks if not t.cancelled() and t.result() is not None]
@@ -112,14 +114,14 @@ class HtmlScraper(BaseScraper):
 
     async def fetchPaperDetails(self,client:httpx.AsyncClient, id:str)->ArticleBase:
         async with self.semaphore:
-            logging.info("Fetch individual abstract")
+            logger.info("Fetch individual abstract")
             if self.rate_limiter:
                 print("Rate limit check")
                 await self.rate_limiter.is_allowed()
             try:
                 url = ARXIV_ABS_URL + id
                 response = await client.get(url)
-                logging.info(f"[{time.strftime('%H:%M:%S')}] Received response from {url}, status: {response.status_code}")
+                logger.info(f"[{time.strftime('%H:%M:%S')}] Received response from {url}, status: {response.status_code}")
                 #insert id into results
                 abstract,title,authors,published_at = self.extract_summary_title(response.text)
                 currArticle = ArticleBase(arxiv_id=id,abstract=abstract,title=title,authors=authors,published_at=published_at)
@@ -127,14 +129,14 @@ class HtmlScraper(BaseScraper):
                 # currArticle = await self.store_results(currArticle)
                 # return response.status_code
             except httpx.HTTPStatusError as e:
-                logging.error(f"[{time.strftime('%H:%M:%S')}] HTTP error: {e}")
+                logger.error(f"[{time.strftime('%H:%M:%S')}] HTTP error: {e}")
                 return e.response.status_code
             except httpx.RequestError as e:
-                logging.error(f"[{time.strftime('%H:%M:%S')}] Request error: {e}")
+                logger.error(f"[{time.strftime('%H:%M:%S')}] Request error: {e}")
                 return None
             except Exception as e:
-                logging.exception(e)
-                logging.error("Failed to process paper")
+                logger.exception(e)
+                logger.error("Failed to process paper")
 
     def extract_summary_title(self,html_content):
         summary = None
@@ -151,7 +153,7 @@ class HtmlScraper(BaseScraper):
 
             summary = ''.join(blockquote[0].find_all(string=True, recursive=False)).strip()
         except Exception as e:
-            logging.error(f"Error in extracting summary {e}")
+            logger.error(f"Error in extracting summary {e}")
             raise HtmlStructureException("Invalid structure - Could not extract Summary")
 
         try:
@@ -171,9 +173,9 @@ class HtmlScraper(BaseScraper):
                 print(date)
                 published_at = datetime.datetime.strptime(date, '%d %b %Y').replace(tzinfo=datetime.timezone.utc)
             except Exception as e:
-                logging.error(f"Error in extracting author or date {e}")
+                logger.error(f"Error in extracting author or date {e}")
         except Exception as e:
-            logging.error(f"Error in extracting title {e}")
+            logger.error(f"Error in extracting title {e}")
             raise HtmlStructureException("Invalid structure. Could not extract title")
 
         return summary,title,authors,published_at
@@ -186,7 +188,7 @@ class HtmlScraper(BaseScraper):
                 print("Rate limit check")
                 await self.rate_limiter.is_allowed()
             print("Fetch new page for listing from",skip)
-            logging.info("Fetch listing page")
+            logger.info("Fetch listing page")
             IDlist = None
             try:
 
@@ -194,13 +196,13 @@ class HtmlScraper(BaseScraper):
                 IDlist,total = self.extract_info_from_listing(r.text)
                 return IDlist,total
             except httpx.HTTPStatusError as e:
-                logging.error(f"[{time.strftime('%H:%M:%S')}] HTTP error: {e}")
+                logger.error(f"[{time.strftime('%H:%M:%S')}] HTTP error: {e}")
                 return e.response.status_code
             except httpx.RequestError as e:
-                logging.error(f"[{time.strftime('%H:%M:%S')}] Request error: {e}")
+                logger.error(f"[{time.strftime('%H:%M:%S')}] Request error: {e}")
                 return None
             except HtmlStructureException as e:
-                logging.error(f"Parsing error {e}")
+                logger.error(f"Parsing error {e}")
                 return None
 
 
@@ -211,14 +213,15 @@ class HtmlScraper(BaseScraper):
 
 
         IDlist,total = await self.fetch_id_list_paging(client,skip=skip)
-        logging.info(f"Total of {total} articles to fetch")
+        if skip == 0:
+            logger.info(f"Total of {total} articles to fetch")
         if total > len(IDlist) and limit>len(IDlist):
             print("Need to fetch more")
             if limit > total:
                 limit = total
             #spawn more tasks to get the results
             tasks = []
-            show = 25
+            show = 25 if limit>25 else limit
             try:
                 async with asyncio.TaskGroup() as tg:
                     for skip in range(show,limit,show):
@@ -226,7 +229,7 @@ class HtmlScraper(BaseScraper):
                         task = tg.create_task(self.fetch_id_list_paging(client, skip=skip,show=show))
                         tasks.append(task)
             except ExceptionGroup as eg:
-                logging.error(f"Batch processing encountered errors: {eg}")
+                logger.error(f"Batch processing encountered errors: {eg}")
 
             # Collect results from tasks that succeeded
             results =  [
