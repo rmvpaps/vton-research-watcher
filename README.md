@@ -95,6 +95,13 @@ llm_api_key=APIKEY
 llm_host=https://api.groq.com/openai/v1
 db_sslstring=ssl
 ```
+## shared
+All database models
+after making changes to sqlmodels
+- create migration scripts
+`alembic revision --autogenerate -m "create article changes"`
+- update database structure
+`alembic upgrade head`
 
 ## Scraping service
 
@@ -129,7 +136,7 @@ db_sslstring=ssl
 - Run the test
 `uv run pytest tests/processor`
 
-- Run the scraper
+- Run the processor
 `python -m processor.main`
 
 
