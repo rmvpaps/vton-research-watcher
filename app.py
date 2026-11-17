@@ -10,6 +10,7 @@ from processor import ProcessingService
 from scraper import scraperService
 import os
 import queue
+from functools import partial
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -34,138 +35,93 @@ log_queue_w2 = queue.Queue()
 formatter = logging.Formatter("[%(asctime)s] %(levelname)s: %(message)s", datefmt="%H:%M:%S")
 queue_handler1 = QueueLogHandler(log_queue_w1)
 queue_handler1.setFormatter(formatter)
-logger.addHandler(queue_handler1)
+logger1 = logging.getLogger("scraper")
+logger1.addHandler(queue_handler1)
+logger1.propagate = False
+
+queue_handler2 = QueueLogHandler(log_queue_w2)
+queue_handler2.setFormatter(formatter)
+logger2 = logging.getLogger("processor")
+logger2.addHandler(queue_handler2)
+logger2.propagate = False
 
 
 
-async def process_new_batch(progress=gr.Progress()):
-
-    log_history = "--- Process Batch session Started ---\n"
-    yield log_history  
-    logger.info("Logger for processor setup")
-
-
-    while not log_queue_w2.empty():
-        try: log_queue_w2.get_nowait()
-        except queue.Empty: break
-
-    def log_progress_callback(iterable, desc=None):
-        for item in progress.tqdm(iterable, desc=desc):
-            # Right before handing control back to the loop, flush all current logs to UI
-            nonlocal log_history
-            while not log_queue_w2.empty():
-                log_history += log_queue_w2.get_nowait() + "\n"
-            yield log_history 
-            yield item
-
-    path = settings.embedding_path
-    print(f"Checking path: {path}")
-    if os.path.exists(path):
-        print(f"Directory exists! Contents: {os.listdir(path)}")
+async def run_and_stream_alt(taskName,progress=gr.Progress(track_tqdm=True)):
+    myq = None
+    mylogger=None
+    if taskName == "scrape":
+        myq = log_queue_w1
+        mylogger = logger1
     else:
-        print(f"DIRECTORY MISSING. Current workdir ({os.getcwd()}) contents: {os.listdir('.')}")
-        raise Exception("Missing models")
-    ratelim = RateLimiterFactory.get_rate_limiter('delay',delay=settings.scrape_delay_seconds)
-        
-    service = ProcessingService(ratelim)
-    await  service.fetch_next_batch_and_process(progress_callback=log_progress_callback)
-    # Final log flush
-    while not log_queue_w2.empty():
-        log_history += log_queue_w2.get_nowait() + "\n"
-    yield log_history
+       myq = log_queue_w2
+       mylogger = logger2
 
+    # 1. Clear stale logs
+    while not myq.empty():
+        try:
+            myq.get_nowait()
+        except queue.Empty:
+            break
 
-# def stream_logs_to_console():
-#     log_history = "--- Scraper Session Started ---\n"
-#     yield log_history
+    log_history = f"--- {taskName} Session Started ---\n"
+    yield f"Running {taskName}...", log_history
 
-#     while not log_queue_w1.empty():
-#         try: log_queue_w1.get_nowait()
-#         except queue.Empty: break
+    mylogger.info(f"Logger for {taskName} setup!")
+    if taskName == "scrape":
 
+        ratelim = RateLimiterFactory.get_rate_limiter(
+            "delay", delay=settings.scrape_delay_seconds
+        )
+        service = scraperService(ratelim)
 
-#     logger.info("Logger for scraper setup!")
-
-
-#     # Every Gradio event runs on a worker. We can just loop and look at the queue.
-#     # We poll the queue dynamically. When the parallel pipeline event finishes, 
-#     # this generator loop will naturally exit because Gradio stops the worker group.
-#     while True:
-#         new_logs = False
-#         while not log_queue_w1.empty():
-#             log_history += log_queue_w1.get_nowait() + "\n"
-#             new_logs = True
-#         if new_logs:
-#             yield log_history
-#         if "--- SCRAPER EXECUTION COMPLETED ---" in log_history:
-#             break
-#         import time
-#         time.sleep(0.1)
-
-#     while not log_queue_w1.empty():
-#         try: log_queue_w1.get_nowait()
-#         except queue.Empty: break
-
-
-# async def scrape_new_batch(progress=gr.Progress(track_tqdm=True)):
-
-
-#     ratelim = RateLimiterFactory.get_rate_limiter('delay',delay=settings.scrape_delay_seconds)
-    
-#     service = scraperService(ratelim)
-#     await  service.run(pbar_flag=True)
-#     logger.info("--- SCRAPER EXECUTION COMPLETED ---") 
-#     return f"✨ PIPELINE SUCCESS!\nProcessed: "
+        # 2. Run the async scraper in the background on the same event loop
+        task = asyncio.create_task(service.run(pbar_flag=True))
 
 
 
+    else:
 
-async def run_and_stream_w1(progress=gr.Progress(track_tqdm=True)):
-  # 1. Clear stale logs
-  while not log_queue_w1.empty():
-    try:
-      log_queue_w1.get_nowait()
-    except queue.Empty:
-      break
+        path = settings.embedding_path
+        print(f"Checking path: {path}")
+        if os.path.exists(path):
+            print(f"Directory exists! Contents: {os.listdir(path)}")
+        else:
+            print(f"DIRECTORY MISSING. Current workdir ({os.getcwd()}) contents: {os.listdir('.')}")
+            raise Exception("Missing models")
+        ratelim = RateLimiterFactory.get_rate_limiter('delay',delay=settings.scrape_delay_seconds)
+            
+        service = ProcessingService(ratelim)
+        task = asyncio.create_task(service.fetch_next_batch_and_process())
 
-  log_history = "--- Scraper Session Started ---\n"
-  yield "⏳ Running scraper...", log_history
 
-  logger.info("Logger for scraper setup!")
+    # 3. Stream logs live while the task is running
+    while not task.done():
+        new_logs = False
+        while not myq.empty():
+            record = myq.get_nowait()
+            # QueueHandler puts LogRecord objects unless formatted; handle both
+            msg = record.getMessage() if hasattr(record, "getMessage") else str(record)
+            log_history += msg + "\n"
+            new_logs = True
 
-  ratelim = RateLimiterFactory.get_rate_limiter(
-      "delay", delay=settings.scrape_delay_seconds
-  )
-  service = scraperService(ratelim)
+        if new_logs:
+            yield f"Running {taskName}...", log_history
 
-  # 2. Run the async scraper in the background on the same event loop
-  task = asyncio.create_task(service.run(pbar_flag=True))
+        await asyncio.sleep(0.1)  # Non-blocking sleep!
 
-  # 3. Stream logs live while the task is running
-  while not task.done():
-    new_logs = False
-    while not log_queue_w1.empty():
-      record = log_queue_w1.get_nowait()
-      # QueueHandler puts LogRecord objects unless formatted; handle both
-      msg = record.getMessage() if hasattr(record, "getMessage") else str(record)
-      log_history += msg + "\n"
-      new_logs = True
+    # 4. Await task to propagate any exceptions & flush remaining logs
+    await task
+    mylogger.info(f"--- {taskName} EXECUTION COMPLETED ---")
 
-    if new_logs:
-      yield "⏳ Running scraper...", log_history
+    while not myq.empty():
+        record = myq.get_nowait()
+        msg = record.getMessage() if hasattr(record, "getMessage") else str(record)
+        log_history += msg + "\n"
 
-    await asyncio.sleep(0.1)  # Non-blocking sleep!
+    yield f"{taskName} PIPELINE SUCCESS!", log_history
 
-  # 4. Await task to propagate any exceptions & flush remaining logs
-  await task
-  logger.info("--- SCRAPER EXECUTION COMPLETED ---")
 
-  while not log_queue_w1.empty():
-    record = log_queue_w1.get_nowait()
-    msg = record.getMessage() if hasattr(record, "getMessage") else str(record)
-    log_history += msg + "\n"
-
-  yield "✨ PIPELINE SUCCESS!", log_history
 
 # --- GRADIO INTERFACE LAYOUT ---
 with gr.Blocks(title="ML Pipeline Control Center") as demo:
@@ -187,15 +143,17 @@ with gr.Blocks(title="ML Pipeline Control Center") as demo:
             # btn1.click(fn=scrape_new_batch, outputs=[out1], api_name="trigger_w1")
             # btn1.click(fn=stream_logs_to_console, outputs=[log_console1], api_name="trigger_w1")
             btn1.click(
-                fn=run_and_stream_w1,
+                #fn=run_and_stream_w1,
+                fn=partial(run_and_stream_alt,taskName="scrape"),
                 outputs=[out1, log_console1],
                 api_name="trigger_w1",
+                show_progress_on=out1,
             )
             
         with gr.Column():
             gr.Markdown("### Worker 2 (Processor)")
             btn2 = gr.Button("🧠 Run Worker 2 Batch", variant="secondary")
-            #out2 = gr.Textbox(label="Worker 2 Log Status")
+            out2 = gr.Textbox(label="Worker 2 Log Status")
             log_console2 = gr.Code(
                 label="Live Log Console (Python standard logging)", 
                 language="python", # Python styling gives nice green/blue syntax highlights to logs
@@ -203,7 +161,13 @@ with gr.Blocks(title="ML Pipeline Control Center") as demo:
                 max_lines=20
             )
             # Exposes API name for cron job: /api/trigger_w2
-            btn2.click(fn=process_new_batch, outputs=[log_console2], api_name="trigger_w2")
+            btn2.click(
+                #fn=run_and_stream_w2, 
+                fn=partial(run_and_stream_alt,taskName="process"),
+                outputs=[out2,log_console2], 
+                api_name="trigger_w2",
+                show_progress_on=out2,
+                )
 
 
 if __name__ == "__main__":
