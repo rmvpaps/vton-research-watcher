@@ -29,14 +29,14 @@ class ProcessingService:
             self.processor = ProcessorFactory.get_processor(settings.processor_mode,keywords=keyword_list,encoding_model=self.util)
         
 
-    async def fetch_next_batch_and_process(self,progress_callback=None)->List[Article]:
+    async def fetch_next_batch_and_process(self,pbar=None)->List[Article]:
         """
         Function to fetch unprocessed articles from DB
         """
         async with get_session() as session:
             articles = await fetch_next_batch(session,settings.PROCESS_BATCH_SIZE)
-            if progress_callback:
-                articles = progress_callback(articles,desc="Processing article abstracts")
+            if pbar:
+                articles = tqdm(articles,desc="Processing article abstracts")
 
             for article in articles:
                 logger.info("processing article")
@@ -56,10 +56,10 @@ class ProcessingService:
             
             await saveRelevanceScore(session,result)
             await updateArticle(session,article)
-            logging.info(f"Rejecting artice {article.arxiv_id} as score is less - {result.score}")
+            logger.info(f"Rejecting artice {article.arxiv_id} as score is less - {result.score}")
             return
 
-        logging.info(f"Getting full text for article {article.arxiv_id}")
+        logger.info(f"Getting full text for article {article.arxiv_id}")
             
         full_text = await self.util.download_get_text(article.arxiv_id)
         

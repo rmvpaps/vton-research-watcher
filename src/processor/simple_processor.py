@@ -15,6 +15,8 @@ from shared import settings
 import yake
 from langchain_text_splitters import MarkdownTextSplitter
 
+logger = logging.getLogger(__name__)
+
 class simpleTransformerProcessorError(Exception):
     pass
 
@@ -96,14 +98,16 @@ class simpleTransformerProcessor(BaseProcessor):
         try:
             summarized_text = ""
             textSize = len(actualText)
-            logging.info(f"Processing text of size {textSize}")
-            for start in range(0,textSize,2000):
+            if textSize > 25000:
+                textSize = 25000
+            logger.info(f"Processing text of size {textSize}")
+            for start in range(0,textSize,2500):
                 if start==0:
-                    chunk = actualText[start:start+2000]
+                    chunk = actualText[start:start+2500]
                 else:
-                    chunk = actualText[start-50:start+2000]
+                    chunk = actualText[start-50:start+2500]
                 
-                logging.info(f"Processing chunk till {start+2000}")
+                logger.info(f"Processing chunk till {start+2500}")
                 prompt = f"summarize: {chunk}"
                 word_count = len(chunk.split())
                 calculated_max = min(50, word_count//2)
@@ -141,7 +145,7 @@ class simpleTransformerProcessor(BaseProcessor):
                 # }
 
                 # summary = self.summarizer(prompt, **summary_config)
-                logging.debug(f"Chunk wordcount:{word_count}, chunk summary words {s_word_count}")
+                logger.debug(f"Chunk wordcount:{word_count}, chunk summary words {s_word_count}")
                 summarized_text+=summary
 
 
@@ -150,7 +154,7 @@ class simpleTransformerProcessor(BaseProcessor):
 
             return summarized_text
         except Exception as e:
-            logging.error(f"Error in summary generation of {article.arxiv_id} {e}")
+            logger.error(f"Error in summary generation of {article.arxiv_id} {e}")
             raise simpleTransformerProcessorError("Summary generation Failed")
         
 
@@ -176,7 +180,7 @@ class simpleTransformerProcessor(BaseProcessor):
             return {k for k in keywords1 + keywords2}
 
         except Exception as e:
-            logging.error(f"Error in keyword generation of {article.arxiv_id} {e}")
+            logger.error(f"Error in keyword generation of {article.arxiv_id} {e}")
             raise simpleTransformerProcessorError("Keyword generation Failed")
 
     async def generateChunks(self, article:Article, actualText:str)->List[str]:
@@ -191,19 +195,19 @@ class simpleTransformerProcessor(BaseProcessor):
             final_chunks = []
             #TODO: summarize each chunk and store the summary along with the chunk for better retrieval
             for chunk in chunks:
-                logging.info(f"Chunk size: {len(chunk)} words {len(chunk.split())}")
+                logger.info(f"Chunk size: {len(chunk)} words {len(chunk.split())}")
                 try:
                     summary = await self.generateSummary(article,chunk,short=True)
-                    logging.info(f"Chunk summary: {summary}")
+                    logger.info(f"Chunk summary: {summary}")
                     final_chunks.append(f"Part of paper discussing {article.title}. \n {summary}  \n\n {chunk}")
                 except Exception as e:
-                    logging.error(f"Error in processing chunk of {article.arxiv_id}: {e}")
+                    logger.error(f"Error in processing chunk of {article.arxiv_id}: {e}")
                     final_chunks.append(chunk)
 
             return final_chunks
 
         except Exception as e:
-            logging.error(f"Error in chunk generation of {article.arxiv_id}: {e}")
+            logger.error(f"Error in chunk generation of {article.arxiv_id}: {e}")
             raise simpleTransformerProcessorError("Chunk generation Failed")
 
     async def createEmbeddings(self, chunks:List[str])->List[List[float]]:
@@ -212,13 +216,13 @@ class simpleTransformerProcessor(BaseProcessor):
             embeddings = await asyncio.to_thread(self.encoding_model.encode, chunks, show_progress_bar=True)
             return embeddings
         except Exception as e:
-            logging.error(f"Error in embedding generation: {e}")
+            logger.error(f"Error in embedding generation: {e}")
             raise simpleTransformerProcessorError("Embedding generation Failed")
 
     async def evaluate_text(self, article:Article, score:float, fullText:str)->Enriched:
         """Generate a summary, keep the summary vector, generate keywords from fullText"""
         try:
-            logging.info("Processing full text")
+            logger.info("Processing full text")
             keywords = await self.generateKeywords(article=article,actualText=fullText)
             keywords = list(keywords)
 
@@ -232,9 +236,9 @@ class simpleTransformerProcessor(BaseProcessor):
             return enriched
         
         except simpleTransformerProcessorError as s:
-            logging.error("Error in processing full text")
+            logger.error("Error in processing full text")
             return None
         except Exception as e:
-            logging.error(f"Unexpected Error occured {e}")
+            logger.error(f"Unexpected Error occured {e}")
             raise e
         

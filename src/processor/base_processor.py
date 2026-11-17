@@ -7,6 +7,9 @@ from io import BytesIO
 import httpx
 from sentence_transformers import SentenceTransformer,models
 import os
+
+logger = logging.getLogger(__name__)
+
 class BaseProcessor(ABC):
 
     @abstractmethod
@@ -32,7 +35,7 @@ class BaseProcessor(ABC):
 
 
 def manual_model_load(model_path):
-    logging.info(f"Manually loading BGE Pipeline from: {model_path}")
+    logger.info(f"Manually loading BGE Pipeline from: {model_path}")
     word_embedding_model = models.Transformer(model_path)
 
     # 2. Load the Pooling layer pointing to the subfolder "1_Pooling"
@@ -48,7 +51,7 @@ def manual_model_load(model_path):
         pooling_model, 
         normalize_model
     ])
-    logging.info(f"successfully loaded BGE Pipeline from: {model_path}")
+    logger.info(f"successfully loaded BGE Pipeline from: {model_path}")
     return model
 
 
@@ -62,8 +65,8 @@ class ProcessorUtils():
                 device='cpu',
                 local_files_only=True)  # e.g., a SentenceTransformer instance
         except Exception as e:
-            logging.error(f"Loading directly from path {settings.embedding_path} failed {e}")
-            logging.warning("Attempting manual load")
+            logger.error(f"Loading directly from path {settings.embedding_path} failed {e}")
+            logger.warning("Attempting manual load")
             self.model = manual_model_load(settings.embedding_path)
 
     def encode(self,data, **kwargs):
@@ -81,15 +84,19 @@ class ProcessorUtils():
             await self.rate_limiter.is_allowed()
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
-                raw = await client.get(f"{settings.ARXIV_PDF_URL}{id}")
-                logging.info("Retrieved pdf from site")
+                raw = await client.get(f"{settings.ARXIV_HTML_URL}{id}")
+                logger.info("Retrieved pdf from site")
                 result = self.md.convert(BytesIO(raw.content))
             
                 # This gives you the clean Markdown text
                 full_text = result.text_content
+                import re 
+                # remove extra whitespaces
+                full_text = re.sub(r'\n\s*\n', '\n', full_text).strip()
 
                 return full_text
+            
 
             except Exception as e:
-                logging.error(f"Error in getting and extracting ARxiv PDF {id}: {e}")
+                logger.error(f"Error in getting and extracting ARxiv PDF {id}: {e}")
                 return None

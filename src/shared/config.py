@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     scrape_concurrency:int = 1
     ARXIV_ABS_URL:str = "https://arxiv.org/abs/"
     ARXIV_PDF_URL:str = "https://arxiv.org/pdf/"
+    ARXIV_HTML_URL:str = "https://arxiv.org/html/"
     db_type: Optional[str] = "sqlite"
     POSTGRES_PASSWORD: str = "default123"
     POSTGRES_DB: str = "vton_research"
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     keywords_path: str = "keywords.yaml"
     scrape_concurrency: int = 2
     scrape_window_rate_min: int = 10
-    scrape_delay_seconds: float = 5.0
+    scrape_delay_seconds: float = 20.0
     defaultuser:int = 0
     summarizer_path:str = "/app/models/t5-small"
     embedding_path:str = "/app/models/bge-small"

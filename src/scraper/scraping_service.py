@@ -51,22 +51,22 @@ class scraperService:
                                 fetch_more=False
                             else:
                                 skip = skip+settings.SCRAPE_BATCH_SIZE
-
+                        logging.info(f"Identified {len(newIDList)} new articles to fetch")
                         #await scraper.get_details_batch(client,IDList)
                         # 2. For each ID, fetch details and save to DB
-                        if pbar_flag:
-                            with tqdm(total=len(newIDList), desc="Scraping articles") as pbar:
-                                async with asyncio.TaskGroup() as tg:
+            if pbar_flag:
+                with tqdm(total=len(newIDList), desc="Scraping articles") as pbar:
+                    async with asyncio.TaskGroup() as tg:
 
-                                    for paper_id in newIDList:
-                                        logger.info("Get each article")
-                                        tg.create_task(self._fetch_and_store(client, paper_id,pbar=pbar))
-                        else:
-                            async with asyncio.TaskGroup() as tg:
-                            
-                                for paper_id in newIDList:
-                                    logger.info("Get each article")
-                                    tg.create_task(self._fetch_and_store(client, paper_id))
+                        for paper_id in newIDList:
+                            logger.info("Get each article")
+                            tg.create_task(self._fetch_and_store(client, paper_id,pbar=pbar))
+            else:
+                async with asyncio.TaskGroup() as tg:
+                
+                    for paper_id in newIDList:
+                        logger.info("Get each article")
+                        tg.create_task(self._fetch_and_store(client, paper_id))
 
 
 
